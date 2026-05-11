@@ -1,0 +1,7 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "quantity-break-ui"
+handle = "quantity-break-ui"
+type = "theme"
+uid = "4a58d529-7f08-9257-184d-957fe9ed08b01a5b2ce6"

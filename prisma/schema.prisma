@@ -1,0 +1,270 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String    @db.Text
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now()) @updatedAt
+}
+
+model Shop {
+  id     String  @id @default(cuid())
+  domain String  @unique
+  name   String?
+  email  String?
+
+  // Billing & Plan
+  plan           PlanType     @default(FREE)
+  billingStatus  BillingStatus @default(INACTIVE)
+  subscriptionId String? @unique
+
+  // Timestamps
+  installedAt   DateTime  @default(now())
+  uninstalledAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  bundles Bundle[]
+  offers  Offer[]
+
+  @@index([domain])
+  @@index([plan])
+  @@index([billingStatus])
+}
+
+model Bundle {
+  id            String       @id @default(uuid())
+  shopId        String
+  shop          Shop         @relation(fields: [shopId], references: [id])
+  title         String
+  status        String       @default("active")
+  discountType  DiscountType       @default(percentage)
+  discountValue Float?
+  minQuantity   Int?
+  items         BundleItem[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  @@index([discountType])
+}
+
+model BundleItem {
+  id        String @id @default(uuid())
+  bundleId  String
+  bundle    Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+  variantId String
+  quantity  Int
+
+  @@index([bundleId])
+  @@index([productId])
+}
+
+model Offer {
+  id     String @id @default(cuid())
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId String
+
+  title  String
+  type   OfferType
+  status OfferStatus @default(ACTIVE)
+
+  priority Int @default(1)
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  shopifyDiscountId String? // ID returned by GraphQL
+  functionId        String? // Shopify Function ID
+
+  conditions OfferCondition[]
+  rewards    OfferReward[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OfferCondition {
+  id      String @id @default(cuid())
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId String
+
+  productId    String? // Shopify Product GID
+  variantId    String? // Shopify Variant GID
+  collectionId String?
+
+  minQuantity Int @default(1)
+
+  createdAt DateTime @default(now())
+}
+
+model OfferReward {
+  id      String @id @default(cuid())
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId String
+
+  productId String?
+  variantId String?
+
+  rewardType  RewardType
+  value       Float? // percentage or fixed amount
+  maxQuantity Int?
+
+  createdAt DateTime @default(now())
+}
+
+enum OfferType {
+  BOGO
+  FREE_GIFT
+  VOLUME_DISCOUNT
+  BUNDLE
+}
+
+enum OfferStatus {
+  ACTIVE
+  PAUSED
+  DRAFT
+  EXPIRED
+}
+
+enum RewardType {
+  FREE
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum PlanType {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum BillingStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum DiscountType {
+  percentage
+  amount
+  fixedPrice
+}
+
+
+// Quantity break
+model QuantityBreakOffer {
+  id            String   @id @default(uuid())
+  title         String
+  applyTo       ApplyToType
+
+  shopifyDiscountId String?
+
+  // UI Display
+  discountTitle       String?
+  discountDescription String?
+
+  startDate     DateTime?
+  endDate       DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // relations
+  tiers         QuantityBreakTier[]
+  products      QuantityBreakProduct[]
+  vendors       QuantityBreakVendor[]
+  types         QuantityBreakType[]
+  collections   QuantityBreakCollection[]
+}
+
+model QuantityBreakTier {
+  id          String   @id @default(uuid())
+
+  tierTitle   String?  
+  quantity    Int
+  discountType DiscountType
+  value       Float
+
+  subTitleText String? 
+  labelText    String? 
+  tagText      String? 
+  preSelect    Boolean?
+
+  offerId     String
+  offer       QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+}
+
+model QuantityBreakProduct {
+  id         String   @id @default(uuid())
+
+  title      String?
+  productId  String
+  isExcluded Boolean  @default(false)
+
+  offerId    String
+  offer      QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+}
+
+model QuantityBreakVendor {
+  id        String @id @default(uuid())
+
+  vendor    String
+
+  offerId   String
+  offer     QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+}
+
+model QuantityBreakType {
+  id        String @id @default(uuid())
+
+  type      String
+
+  offerId   String
+  offer     QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+}
+
+model QuantityBreakCollection {
+  id            String @id @default(uuid())
+
+  collectionId  String
+
+  offerId       String
+  offer         QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+}
+
+enum ApplyToType {
+  allProducts
+  excludeProducts
+  selectedProducts
+  exceptSelectedVendorTypeCollection
+  productsInSelectedVendorTypeCollection
+}

@@ -1,0 +1,303 @@
+{% comment %} Quantity Break Widget {% endcomment %}
+
+<style>
+  #qb-widget { margin: 16px 0; font-family: inherit; }
+  .qb-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 8px; }
+  .qb-tiers { display: flex; flex-direction: column; gap: 8px; }
+  .qb-tier {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border: 1.5px solid #e5e7eb; border-radius: 8px;
+    cursor: pointer; background: #fff; transition: border-color 0.15s, background 0.15s;
+  }
+  .qb-tier:hover { border-color: #374151; background: #f9fafb; }
+  .qb-tier.qb-active { border-color: #111827; background: #f3f4f6; }
+  .qb-tier-left { display: flex; flex-direction: column; gap: 2px; }
+  .qb-tier-qty { font-size: 14px; font-weight: 600; color: #111827; }
+  .qb-tier-label { font-size: 12px; color: #6b7280; }
+  .qb-tier-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .qb-tier-badge {
+    font-size: 13px; font-weight: 700; color: #15803d;
+    background: #dcfce7; padding: 2px 8px; border-radius: 999px;
+  }
+  .qb-tier-total { font-size: 12px; color: #6b7280; }
+  .qb-native-discounts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .qb-native-badge {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; background: #eff6ff;
+    border: 1.5px solid #bfdbfe; border-radius: 8px;
+  }
+  .qb-native-badge-icon { font-size: 15px; margin-top: 1px; flex-shrink: 0; }
+  .qb-native-badge-title { font-size: 13px; font-weight: 600; color: #1e40af; }
+  .qb-native-badge-summary { font-size: 12px; color: #6b7280; margin-top: 2px; }
+  .qb-native-badge-ends { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+</style>
+
+<div id="qb-widget" style="display:none">
+  <div id="qb-native-discounts" class="qb-native-discounts"></div>
+  <div class="qb-title" id="qb-tiers-title" style="display:none">Quantity discounts</div>
+  <div class="qb-tiers" id="qb-tiers-list"></div>
+</div>
+
+<script>
+(function () {
+  if (!window.location.pathname.includes('/products/')) return;
+
+  const PROXY_BASE   = '/apps/quantity-break';
+  const PRODUCT_ID   = {{ product.id | json }};
+  const BASE_PRICE   = {{ product.selected_or_first_available_variant.price | default: product.price }};
+  const CURRENCY     = {{ shop.currency | json }};
+  const MONEY_FORMAT = {{ shop.money_format | json }};
+
+  let cachedTiers    = null;
+  let cachedDiscounts = null;
+  let activeTierEl   = null;
+  let currentPrice   = BASE_PRICE;
+
+  // ── Money formatter ────────────────────────────────────────
+  function formatMoney(cents) {
+    try {
+      return (cents / 100).toLocaleString(undefined, {
+        style: 'currency', currency: CURRENCY, minimumFractionDigits: 2,
+      });
+    } catch (e) {
+      return CURRENCY + ' ' + (cents / 100).toFixed(2);
+    }
+  }
+
+  // ── Get current variant price ──────────────────────────────
+  function getVariantPrice() {
+    try {
+      const form = document.querySelector('form[action*="/cart/add"]');
+      const variantInput = form && form.querySelector('[name="id"]');
+      if (variantInput && window.ShopifyAnalytics?.meta?.product?.variants) {
+        const v = window.ShopifyAnalytics.meta.product.variants
+          .find(v => v.id === parseInt(variantInput.value));
+        if (v) return v.price;
+      }
+    } catch (e) {}
+    return currentPrice;
+  }
+
+  // ── Render native Shopify automatic discounts ──────────────
+  function renderNativeDiscounts(discounts) {
+    var container = document.getElementById('qb-native-discounts');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!discounts || discounts.length === 0) return;
+
+    discounts.forEach(function(d) {
+      var valueText = '';
+      if (d.discountValue) {
+        if (d.discountValue.type === 'percentage') {
+          valueText = d.discountValue.value + '% off';
+        } else if (d.discountValue.type === 'amount') {
+          valueText = d.discountValue.currency + ' ' + d.discountValue.value + ' off';
+        }
+      }
+
+      var endsText = '';
+      if (d.endsAt) {
+        var ends = new Date(d.endsAt);
+        endsText = 'Ends ' + ends.toLocaleDateString(undefined, {
+          month: 'short', day: 'numeric', year: 'numeric'
+        });
+      }
+
+      var el = document.createElement('div');
+      el.className = 'qb-native-badge';
+      el.innerHTML =
+        '<span class="qb-native-badge-icon">🏷</span>' +
+        '<div>' +
+          '<div class="qb-native-badge-title">' + d.title + (valueText ? ' — ' + valueText : '') + '</div>' +
+          (d.summary ? '<div class="qb-native-badge-summary">' + d.summary + '</div>' : '') +
+          (endsText ? '<div class="qb-native-badge-ends">' + endsText + '</div>' : '') +
+        '</div>';
+
+      container.appendChild(el);
+    });
+  }
+
+  // ── Render tiers ───────────────────────────────────────────
+  function renderTiers(tiers) {
+    var list      = document.getElementById('qb-tiers-list');
+    var tiersTitle = document.getElementById('qb-tiers-title');
+    if (!list) return;
+
+    list.innerHTML = '';
+    activeTierEl = null;
+
+    if (!tiers || tiers.length === 0) {
+      if (tiersTitle) tiersTitle.style.display = 'none';
+      return;
+    }
+
+    if (tiersTitle) tiersTitle.style.display = 'block';
+
+    const price = getVariantPrice();
+
+    tiers.forEach(function (tier) {
+      const qty          = tier.quantity;
+      const discountVal  = parseFloat(tier.value);
+      const discountType = tier.discountType;
+
+      let discountedUnit;
+      let badgeText;
+
+      if (discountType === 'percentage') {
+        discountedUnit = price * (1 - discountVal / 100);
+        badgeText = discountVal + '% off';
+      } else if (discountType === 'amount') {
+        discountedUnit = price - (discountVal * 100);
+        badgeText = formatMoney(discountVal * 100) + ' off';
+      } else if (discountType === 'fixedPrice') {
+        discountedUnit = discountVal * 100;
+        badgeText = formatMoney(price - discountedUnit) + ' off';
+      } else {
+        discountedUnit = price;
+        badgeText = '';
+      }
+
+      const totalCents = Math.round(discountedUnit * qty);
+      const label = tier.tierTitle || ('Buy ' + qty);
+
+      const el = document.createElement('div');
+      el.className = 'qb-tier';
+      el.dataset.qty = qty;
+      el.innerHTML =
+        '<div class="qb-tier-left">' +
+          '<span class="qb-tier-qty">' + label + '</span>' +
+          '<span class="qb-tier-label">Each: ' + formatMoney(Math.round(discountedUnit)) + '</span>' +
+        '</div>' +
+        '<div class="qb-tier-right">' +
+          (badgeText ? '<span class="qb-tier-badge">' + badgeText + '</span>' : '') +
+          '<span class="qb-tier-total">Total: ' + formatMoney(totalCents) + '</span>' +
+        '</div>';
+
+      el.addEventListener('click', function () {
+        setQuantity(qty);
+        if (activeTierEl) activeTierEl.classList.remove('qb-active');
+        el.classList.add('qb-active');
+        activeTierEl = el;
+      });
+
+      list.appendChild(el);
+    });
+  }
+
+  // ── Update quantity input (Dawn-compatible) ────────────────
+  function setQuantity(qty) {
+    const form = document.querySelector('form[action*="/cart/add"]');
+    if (!form) return;
+    const input = form.querySelector('input[name="quantity"]');
+    if (!input) return;
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype, 'value'
+    ).set;
+    nativeSetter.call(input, qty);
+    input.dispatchEvent(new Event('input',  { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // ── Fetch from app proxy ───────────────────────────────────
+  async function fetchAndRender() {
+    if (cachedTiers !== null) {
+      renderNativeDiscounts(cachedDiscounts || []);
+      renderTiers(cachedTiers);
+      return;
+    }
+
+    try {
+      const res = await fetch(PROXY_BASE + '?productId=' + PRODUCT_ID, {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      cachedTiers     = data.tiers || [];
+      cachedDiscounts = data.discounts || [];
+
+      // Show widget if there is anything to display
+      if (cachedTiers.length > 0 || cachedDiscounts.length > 0) {
+        var widget = document.getElementById('qb-widget');
+        if (widget) widget.style.display = 'block';
+      }
+
+      renderNativeDiscounts(cachedDiscounts);
+      renderTiers(cachedTiers);
+
+    } catch (err) {
+      console.error('[QB] fetch failed:', err);
+    }
+  }
+
+  // ── Mount widget next to quantity input ────────────────────
+  function mountWidget() {
+    const form = document.querySelector('form[action*="/cart/add"]');
+    if (!form) return;
+
+    const widget = document.getElementById('qb-widget');
+    if (!widget) return;
+
+    const qtyWrap = form.querySelector('quantity-input')
+                 || form.querySelector('[class*="quantity"]')
+                 || form.querySelector('input[name="quantity"]')?.parentElement;
+
+    if (qtyWrap) {
+      qtyWrap.after(widget);
+    } else {
+      form.prepend(widget);
+    }
+
+    fetchAndRender();
+  }
+
+  // ── Re-render on variant change ────────────────────────────
+  function onVariantChange() {
+    setTimeout(function () {
+      if (cachedTiers !== null) {
+        renderNativeDiscounts(cachedDiscounts || []);
+        renderTiers(cachedTiers);
+      }
+    }, 100);
+  }
+
+  // ── Bootstrap ──────────────────────────────────────────────
+  function boot() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', mountWidget);
+    } else {
+      mountWidget();
+    }
+
+    document.addEventListener('shopify:section:load', function () {
+      cachedTiers = null;
+      cachedDiscounts = null;
+      mountWidget();
+    });
+
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.name === 'id') onVariantChange();
+    });
+    document.addEventListener('variant:change', onVariantChange);
+
+    var observer = new MutationObserver(function () {
+      if (document.querySelector('form[action*="/cart/add"]')) {
+        observer.disconnect();
+        mountWidget();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  boot();
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Quantity Break",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}
