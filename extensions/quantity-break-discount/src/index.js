@@ -3,6 +3,14 @@ import { ProductDiscountSelectionStrategy } from "../generated/api";
 export function cartLinesDiscountsGenerateRun(input) {
   const config = input.discount?.metafield?.jsonValue;
 
+  if (config?.status === "inactive") {
+    return { operations: [] };
+  }
+
+  if (config?.endDate && new Date(config.endDate).getTime() < Date.now()) {
+    return { operations: [] };
+  }
+
   if (!config?.tiers?.length || !input.cart?.lines?.length) {
     return { operations: [] };
   }

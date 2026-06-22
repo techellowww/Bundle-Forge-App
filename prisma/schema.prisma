@@ -42,9 +42,9 @@ model Shop {
   email  String?
 
   // Billing & Plan
-  plan           PlanType     @default(FREE)
+  plan           PlanType      @default(FREE)
   billingStatus  BillingStatus @default(INACTIVE)
-  subscriptionId String? @unique
+  subscriptionId String?       @unique
 
   // Timestamps
   installedAt   DateTime  @default(now())
@@ -52,8 +52,12 @@ model Shop {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
 
-  bundles Bundle[]
-  offers  Offer[]
+  bundles             Bundle[]
+  offers              Offer[]
+  fbtOffers           FrequentlyBoughtOffer[]
+  fixedBundles        FixedBundleOffer[]
+  quantityBreakOffers QuantityBreakOffer[]
+  bxgyOffers          BxgyOffer[]
 
   @@index([domain])
   @@index([plan])
@@ -66,12 +70,13 @@ model Bundle {
   shop          Shop         @relation(fields: [shopId], references: [id])
   title         String
   status        String       @default("active")
-  discountType  DiscountType       @default(percentage)
+  discountType  DiscountType @default(percentage)
   discountValue Float?
   minQuantity   Int?
   items         BundleItem[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+
   @@index([discountType])
 }
 
@@ -177,14 +182,18 @@ enum DiscountType {
   percentage
   amount
   fixedPrice
+  free
 }
-
 
 // Quantity break
 model QuantityBreakOffer {
-  id            String   @id @default(uuid())
-  title         String
-  applyTo       ApplyToType
+  id String @id @default(uuid())
+
+  shopId String?
+  shop   Shop? @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  title   String
+  applyTo ApplyToType
 
   shopifyDiscountId String?
 
@@ -192,73 +201,74 @@ model QuantityBreakOffer {
   discountTitle       String?
   discountDescription String?
 
-  startDate     DateTime?
-  endDate       DateTime?
+  startDate DateTime?
+  endDate   DateTime?
+  status QuantityBreakStatus @default(active) 
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // relations
-  tiers         QuantityBreakTier[]
-  products      QuantityBreakProduct[]
-  vendors       QuantityBreakVendor[]
-  types         QuantityBreakType[]
-  collections   QuantityBreakCollection[]
+  tiers       QuantityBreakTier[]
+  products    QuantityBreakProduct[]
+  vendors     QuantityBreakVendor[]
+  types       QuantityBreakType[]
+  collections QuantityBreakCollection[]
 }
 
 model QuantityBreakTier {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  tierTitle   String?  
-  quantity    Int
+  tierTitle    String?
+  quantity     Int
   discountType DiscountType
-  value       Float
+  value        Float
 
-  subTitleText String? 
-  labelText    String? 
-  tagText      String? 
+  subTitleText String?
+  labelText    String?
+  tagText      String?
   preSelect    Boolean?
 
-  offerId     String
-  offer       QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId String
+  offer   QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 }
 
 model QuantityBreakProduct {
-  id         String   @id @default(uuid())
+  id String @id @default(uuid())
 
   title      String?
   productId  String
-  isExcluded Boolean  @default(false)
+  isExcluded Boolean @default(false)
 
-  offerId    String
-  offer      QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId String
+  offer   QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 }
 
 model QuantityBreakVendor {
-  id        String @id @default(uuid())
+  id String @id @default(uuid())
 
-  vendor    String
+  vendor String
 
-  offerId   String
-  offer     QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId String
+  offer   QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 }
 
 model QuantityBreakType {
-  id        String @id @default(uuid())
+  id String @id @default(uuid())
 
-  type      String
+  type String
 
-  offerId   String
-  offer     QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId String
+  offer   QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 }
 
 model QuantityBreakCollection {
-  id            String @id @default(uuid())
+  id String @id @default(uuid())
 
-  collectionId  String
+  collectionId String
 
-  offerId       String
-  offer         QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offerId String
+  offer   QuantityBreakOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 }
 
 enum ApplyToType {
@@ -267,4 +277,255 @@ enum ApplyToType {
   selectedProducts
   exceptSelectedVendorTypeCollection
   productsInSelectedVendorTypeCollection
+}
+
+enum QuantityBreakStatus  {
+  active
+  inactive
+}
+
+// Buy X Get Y Offer
+model BxgyOffer {
+  id String @id @default(uuid())
+
+  shopId String?
+  shop   Shop? @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  // Basic Info (OfferInfo component)
+  title         String
+  discountTitle String?
+  startDate     DateTime?
+  endDate       DateTime?
+
+  status BxgyStatus @default(active)
+
+  shopifyDiscountId String?
+
+  // Product condition (OfferMain component)
+  applyTo          ApplyToType
+  requiredQuantity Int         @default(1)
+  trackBy          TrackByType @default(PRODUCT)
+  sameAsGift       Boolean     @default(false)
+
+  // Gift mode (GiftSection component)
+  giftMode GiftModeType @default(PRODUCT_GIFT)
+
+  // Relations
+  products     BxgyProduct[]
+  vendors      BxgyVendor[]
+  productTypes BxgyProductType[]
+  collections  BxgyCollection[]
+  productGift  BxgyProductGift?
+  shippingGift BxgyShippingGift?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Products linked to the offer (includes excluded products)
+model BxgyProduct {
+  id      String    @id @default(uuid())
+  offerId String
+  offer   BxgyOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  productId  String
+  title      String?
+  isExcluded Boolean @default(false)
+
+  @@index([offerId])
+  @@index([productId])
+}
+
+model BxgyVendor {
+  id      String    @id @default(uuid())
+  offerId String
+  offer   BxgyOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  vendor String
+
+  @@index([offerId])
+}
+
+model BxgyProductType {
+  id      String    @id @default(uuid())
+  offerId String
+  offer   BxgyOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  productType String
+
+  @@index([offerId])
+}
+
+model BxgyCollection {
+  id      String    @id @default(uuid())
+  offerId String
+  offer   BxgyOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  collectionId String
+  title        String?
+
+  @@index([offerId])
+}
+
+// Gift product config (SelectGifts component)
+model BxgyProductGift {
+  id      String    @id @default(uuid())
+  offerId String    @unique
+  offer   BxgyOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  discountType  DiscountType
+  discountValue Float?
+  giftQuantity  Int          @default(1)
+
+  giftProducts BxgyGiftProduct[]
+}
+
+model BxgyGiftProduct {
+  id     String          @id @default(uuid())
+  giftId String
+  gift   BxgyProductGift @relation(fields: [giftId], references: [id], onDelete: Cascade)
+
+  productId String
+  title     String?
+
+  @@index([giftId])
+}
+
+// Shipping discount config (ShippingDiscount component)
+model BxgyShippingGift {
+  id      String    @id @default(uuid())
+  offerId String    @unique
+  offer   BxgyOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  discountType       DiscountType
+  discountValue      Float?
+  enableFreeShipping Boolean      @default(false)
+  freeShippingLabel  String?
+}
+
+enum BxgyStatus {
+  active
+  inactive
+}
+
+enum GiftModeType {
+  PRODUCT_GIFT
+  SHIPPING_DISCOUNT
+}
+
+enum TrackByType {
+  PRODUCT
+  VARIANT
+}
+
+// Frequently bought together
+model FrequentlyBoughtOffer {
+  id     String @id @default(uuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  title         String
+  discountTitle String?
+  status        FbtStatus @default(active)
+
+  applyTo ApplyToType @default(allProducts)
+
+  // Discount applied when all products are added together
+  discountType  DiscountType?
+  discountValue Float?
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  shopifyDiscountId String?
+
+  triggerProducts FbtTriggerProduct[] // the "main" product that triggers the widget
+  bundledProducts FbtBundledProduct[] // the companion products shown alongside
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shopId])
+  @@index([status])
+}
+
+// The product whose PDP triggers the widget
+model FbtTriggerProduct {
+  id      String                @id @default(uuid())
+  offerId String
+  offer   FrequentlyBoughtOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  productId String
+  title     String?
+
+  @@index([offerId])
+}
+
+// The companion products displayed in the widget
+model FbtBundledProduct {
+  id      String                @id @default(uuid())
+  offerId String
+  offer   FrequentlyBoughtOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  productId String
+  title     String?
+  position  Int     @default(0) // display order
+
+  @@index([offerId])
+}
+
+enum FbtStatus {
+  active
+  inactive
+}
+
+// Fixed Bundle Offer
+model FixedBundleOffer {
+  id     String @id @default(uuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  status      FixedBundleStatus @default(active)
+
+  discountType    DiscountType?
+  discountValue   Float?
+  offerPercentage Float?
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  shopifyDiscountId String?
+  functionId        String?
+
+  products FixedBundleProduct[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shopId])
+  @@index([status])
+}
+
+model FixedBundleProduct {
+  id      String           @id @default(uuid())
+  offerId String
+  offer   FixedBundleOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  productId   String
+  title       String?
+  vendor      String?
+  productType String?
+  imageUrl    String?
+  position    Int     @default(0)
+
+  @@index([offerId])
+}
+
+enum FixedBundleStatus {
+  active
+  inactive
 }

@@ -210,6 +210,8 @@ const CollectionChipField = ({ selected, onAdd, onRemove }) => {
 const ApplyTwo = ({
   applyTo,
   setApplyTo,
+  status,
+  setStatus,
   selectedProducts,
   setSelectedProducts,
   excludedProducts,
@@ -372,6 +374,15 @@ const ApplyTwo = ({
               )}
             </s-box>
           )}
+
+          <s-select
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <s-option value="active">Active</s-option>
+            <s-option value="inactive">Inactive</s-option>
+          </s-select>
         </s-stack>
       </s-card>
     </s-section>

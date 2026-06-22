@@ -31,6 +31,7 @@ const QuantityBreak = ({ offer }) => {
   const [preSelect, setPreSelect] = useState(false);
 
   const [applyTo, setApplyTo] = useState(offer?.applyTo ?? "allProducts");
+  const [status, setStatus] = useState(offer?.status ?? "active");
 
   const [selectedProducts, setSelectedProducts] = useState(
     offer?.products
@@ -104,6 +105,7 @@ const QuantityBreak = ({ offer }) => {
         discountDescription,
         startDate,
         endDate,
+        status,
         tiers: tiers.map((t) => ({
           tierTitle: t.tierTitle,
           quantity: Number(t.quantity),
@@ -176,6 +178,8 @@ const QuantityBreak = ({ offer }) => {
             <ApplyTwo
               applyTo={applyTo}
               setApplyTo={setApplyTo}
+              status={status}
+              setStatus={setStatus}
               selectedProducts={selectedProducts}
               setSelectedProducts={setSelectedProducts}
               excludedProducts={excludedProducts}

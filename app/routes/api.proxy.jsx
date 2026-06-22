@@ -67,6 +67,8 @@ export async function loader({ request }) {
   const selectedOffer = await prisma.quantityBreakOffer.findFirst({
     where: {
       applyTo: "selectedProducts",
+      status: "active",
+      OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
       products: { some: { productId, isExcluded: false } },
     },
     include: { tiers: { orderBy: { quantity: "asc" } } },
@@ -81,9 +83,11 @@ export async function loader({ request }) {
   }
 
   const allProductsOffer = await prisma.quantityBreakOffer.findFirst({
-    where: { applyTo: "allProducts" },
-    include: { tiers: { orderBy: { quantity: "asc" } } },
-    orderBy: { createdAt: "desc" },
+    where: {
+      applyTo: "allProducts",
+      status: "active",
+      OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+    },
   });
 
   if (allProductsOffer) {
@@ -96,6 +100,8 @@ export async function loader({ request }) {
   const excludeOffer = await prisma.quantityBreakOffer.findFirst({
     where: {
       applyTo: "excludeProducts",
+      status: "active",
+      OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
       products: { none: { productId, isExcluded: true } },
     },
     include: { tiers: { orderBy: { quantity: "asc" } } },

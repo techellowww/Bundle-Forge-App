@@ -1,0 +1,25 @@
+query CartInput {
+  cart {
+    lines {
+      id
+      merchandise {
+        ... on ProductVariant {
+          product {
+            id
+          }
+        }
+      }
+      cost {
+        subtotalAmount {
+          amount
+        }
+      }
+    }
+  }
+  discount {
+    discountClasses
+    metafield(namespace: "fixed-bundle", key: "config") {
+      value
+    }
+  }
+}

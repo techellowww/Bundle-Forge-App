@@ -1,0 +1,265 @@
+<div id="bxgy-root" data-product-id="{{ product.id }}" style="margin:16px 0;display:none;"></div>
+
+<script>
+(function () {
+  var root = document.getElementById('bxgy-root');
+  if (!root) return;
+
+  var productId = root.dataset.productId;
+  if (!productId) return;
+
+  function mountWidget() {
+    var form = document.querySelector('form[action*="/cart/add"]');
+    if (!form) return;
+
+    var qtyWrap = form.querySelector('quantity-input')
+      || form.querySelector('[class*="quantity"]')
+      || (form.querySelector('input[name="quantity"]') && form.querySelector('input[name="quantity"]').parentElement);
+
+    if (qtyWrap) {
+      qtyWrap.after(root);
+    } else {
+      form.prepend(root);
+    }
+
+    fetchAndRender();
+  }
+
+function fetchAndRender() {
+  fetch('/apps/quantity-break?type=bxgy&productId=' + productId)
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (!data.offers || !data.offers.length) return;
+
+      var html = '';
+
+      data.offers.forEach(function (offer) {
+        var isProductGift = !!offer.productGift;
+        var isShipping = !!offer.shippingGift;
+
+        // ── Section header per offer type ──
+        var sectionLabel = isProductGift
+          ? '🎁 Free Gift Offer'
+          : isShipping
+            ? '🚚 Shipping Offer'
+            : 'Bundle Offer';
+
+        // ── Badge text + color ──
+        var badgeText = '';
+        var badgeBg = '#dcfce7';
+        var badgeColor = '#15803d';
+
+        if (isProductGift) {
+          var pg = offer.productGift;
+          if (pg.discountType === 'free') {
+            badgeText = 'Free Gift';
+          } else if (pg.discountType === 'percentage') {
+            badgeText = pg.discountValue + '% OFF Gift';
+          } else if (pg.discountType === 'fixedPrice') {
+            badgeText = 'Gift at Fixed Price';
+          }
+          badgeBg = '#dcfce7';
+          badgeColor = '#15803d';
+        } else if (isShipping) {
+          var sg = offer.shippingGift;
+          if (sg.enableFreeShipping) {
+            badgeText = 'Free Shipping';
+          } else if (sg.discountType === 'percentage') {
+            badgeText = sg.discountValue + '% Shipping OFF';
+          } else if (sg.discountType === 'fixedPrice') {
+            badgeText = sg.discountValue + ' OFF Shipping';
+          }
+          badgeBg = '#dbeafe';
+          badgeColor = '#1d4ed8';
+        }
+
+        // ── Requirement line ──
+        var requirementText = 'Buy ' + offer.requiredQuantity + ' qualifying item'
+          + (offer.requiredQuantity > 1 ? 's' : '') + ' to unlock';
+
+        // ── Gift product list (product gift only) ──
+        var gifts = '';
+        var giftProducts = isProductGift && offer.productGift.giftProducts
+          ? offer.productGift.giftProducts
+          : [];
+
+        giftProducts.forEach(function (g) {
+          var giftLabel = '';
+          if (offer.productGift.discountType === 'free') {
+            giftLabel = 'FREE';
+          } else if (offer.productGift.discountType === 'percentage') {
+            giftLabel = offer.productGift.discountValue + '% OFF';
+          } else if (offer.productGift.discountType === 'fixedPrice') {
+            giftLabel = 'Fixed price';
+          }
+
+          gifts += '<div style="display:flex;align-items:center;justify-content:space-between;'
+            + 'font-size:13px;color:#374151;margin-top:6px;gap:8px;">'
+            + '<span style="display:flex;align-items:center;gap:5px;">'
+            + '<span style="color:#15803d;font-weight:700;">✓</span>'
+            + '<span>' + g.title + '</span>'
+            + '</span>'
+            + '<span style="font-size:11px;font-weight:700;background:#dcfce7;'
+            + 'color:#15803d;padding:2px 7px;border-radius:12px;">' + giftLabel + '</span>'
+            + '</div>';
+        });
+
+        // ── Shipping details (shipping gift only) ──
+        var shippingDetail = '';
+        if (isShipping) {
+          var sg = offer.shippingGift;
+          var detail = sg.enableFreeShipping
+            ? 'Shipping is completely free on this order.'
+            : sg.discountType === 'percentage'
+              ? sg.discountValue + '% off your shipping cost.'
+              : sg.discountValue + ' off your shipping cost.';
+
+          shippingDetail = '<div style="font-size:13px;color:#1d4ed8;margin-top:8px;'
+            + 'background:#eff6ff;border-radius:6px;padding:8px 10px;">'
+            + detail
+            + '</div>';
+        }
+
+        // ── Button label ──
+        var buttonLabel = isProductGift ? 'Add Bundle + Gift' : 'Activate Shipping Deal';
+        var buttonBg = isShipping ? '#1d4ed8' : '#111827';
+
+        // ── Serialise offer data for button ──
+        var offerData = JSON.stringify({
+          giftProducts: giftProducts,
+          giftQuantity: isProductGift && offer.productGift.giftQuantity
+            ? offer.productGift.giftQuantity
+            : 1
+        }).replace(/'/g, "&#39;");
+
+        // ── Full card ──
+        html += '<div style="margin-bottom:16px;">'
+
+          // Section label above card
+          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;'
+          + 'letter-spacing:0.08em;color:#6b7280;margin-bottom:6px;">'
+          + sectionLabel
+          + '</div>'
+
+          // Card
+          + '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#fff;">'
+
+            // Title row + badge
+            + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+            + '<div style="font-size:14px;font-weight:600;color:#111827;">'
+            + (offer.discountTitle || offer.title)
+            + '</div>'
+            + '<div style="background:' + badgeBg + ';color:' + badgeColor + ';'
+            + 'font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">'
+            + badgeText
+            + '</div>'
+            + '</div>'
+
+            // Requirement line
+            + '<div style="font-size:12px;color:#9ca3af;margin-top:5px;">'
+            + requirementText
+            + '</div>'
+
+            // Gift products or shipping detail
+            + gifts
+            + shippingDetail
+
+            // Button (only shown for product gift; shipping discount is automatic)
+            + (isProductGift
+              ? '<button onclick="bxgyAddBundle(this)" data-offer=\'' + offerData + '\' '
+                + 'style="width:100%;border:none;border-radius:8px;padding:10px;'
+                + 'background:' + buttonBg + ';color:#fff;font-size:14px;font-weight:600;'
+                + 'cursor:pointer;margin-top:10px;">'
+                + buttonLabel
+                + '</button>'
+              : '<div style="font-size:12px;color:#6b7280;margin-top:10px;text-align:center;">'
+                + 'Discount applied automatically at checkout'
+                + '</div>'
+              )
+
+          + '</div>'
+        + '</div>';
+      });
+
+      root.innerHTML = html;
+      root.style.display = 'block';
+    })
+    .catch(function (err) {
+      console.error('[BXGY]', err);
+    });
+}
+
+  function boot() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', mountWidget);
+    } else {
+      mountWidget();
+    }
+
+    var observer = new MutationObserver(function () {
+      if (document.querySelector('form[action*="/cart/add"]')) {
+        observer.disconnect();
+        mountWidget();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  boot();
+
+window.bxgyAddBundle = function (btn) {
+  var offer = JSON.parse(btn.dataset.offer);
+  var giftProducts = offer.giftProducts || [];
+  var giftQuantity = offer.giftQuantity || 1;
+
+  if (!giftProducts.length) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+
+  // Use variantId from enriched API response — no extra fetch needed
+  var items = giftProducts
+    .filter(function(g) { return g.variantId; })
+    .map(function(g) {
+      return { id: parseInt(g.variantId), quantity: giftQuantity };
+    });
+
+  if (!items.length) {
+    btn.disabled = false;
+    btn.textContent = 'Add Bundle';
+    return;
+  }
+
+  fetch('/cart/add.js', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: items })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function() {
+    btn.textContent = 'Added! ✓';
+    document.dispatchEvent(new CustomEvent('cart:refresh'));
+    var cartDrawerTrigger = document.querySelector('[data-cart-open], .cart-toggle, #cart-icon-bubble');
+    if (cartDrawerTrigger) cartDrawerTrigger.click();
+    setTimeout(function () {
+      btn.disabled = false;
+      btn.textContent = 'Add Bundle';
+    }, 2000);
+  })
+  .catch(function (err) {
+    console.error('[BXGY] Add to cart failed:', err);
+    btn.disabled = false;
+    btn.textContent = 'Add Bundle';
+  });
+};
+
+})();
+</script>
+
+{% schema %}
+{
+  "name": "BXGY Offers",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

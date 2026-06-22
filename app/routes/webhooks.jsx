@@ -26,7 +26,11 @@ export const action = async ({ request }) => {
           await db.bundle.deleteMany({ where: { shopId: shopRecord.id } });
           await db.offer.deleteMany({ where: { shopId: shopRecord.id } });
         }
-        await db.quantityBreakOffer.deleteMany({});
+        await db.quantityBreakOffer.deleteMany({
+          where: {
+            shopId: shopRecord.id,
+          },
+        });
         await db.session.deleteMany({ where: { shop } });
         console.log(`[GDPR] All data deleted for: ${shop}`);
       } catch (err) {

@@ -1,0 +1,22 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "t:name"
+handle = "fixed-bundle-discount"
+type = "function"
+uid = "c49ff517-b54e-9bc2-80d5-348b213dc68bd85f50f1"
+description = "t:description"
+
+  [[extensions.targeting]]
+  target = "cart.lines.discounts.generate.run"
+  input_query = "src/cart_lines_discounts_generate_run.graphql"
+  export = "cart-lines-discounts-generate-run"
+
+  [[extensions.targeting]]
+  target = "cart.delivery-options.discounts.generate.run"
+  input_query = "src/cart_delivery_options_discounts_generate_run.graphql"
+  export = "cart-delivery-options-discounts-generate-run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"

@@ -69,7 +69,7 @@ export default function QuantityBreakList() {
                   <s-table-cell>{tier.discountType}</s-table-cell>
                   <s-table-cell>{tier.quantity}</s-table-cell>
                   <s-table-cell>{tier.value}</s-table-cell>
-                  <s-table-cell>Active</s-table-cell>
+                  <s-table-cell>{item.status}</s-table-cell>
                   <s-table-cell>
                     {item.startDate
                       ? new Date(item.startDate).toLocaleDateString()

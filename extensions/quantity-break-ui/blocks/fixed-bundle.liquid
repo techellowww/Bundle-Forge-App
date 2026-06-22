@@ -1,0 +1,141 @@
+<div
+  id="fixed-bundle-root"
+  data-product-id="{{ product.id }}"
+  data-shop="{{ shop.permanent_domain }}"
+  style="margin: 16px 0; display: none;"
+></div>
+
+<script>
+(function () {
+  var root = document.getElementById('fixed-bundle-root');
+  if (!root) return;
+
+  var productId = root.dataset.productId;
+  var shop      = root.dataset.shop;
+  if (!productId || !shop) return;
+
+  function mountWidget() {
+    var form = document.querySelector('form[action*="/cart/add"]');
+    if (!form) return;
+
+    var qtyWrap =
+      form.querySelector('quantity-input') ||
+      form.querySelector('[class*="quantity"]') ||
+      (form.querySelector('input[name="quantity"]') &&
+        form.querySelector('input[name="quantity"]').parentElement);
+
+    if (qtyWrap) {
+      qtyWrap.after(root);
+    } else {
+      form.prepend(root);
+    }
+
+    fetchAndRender();
+  }
+
+  function fetchAndRender() {
+    var apiUrl =
+      '/apps/quantity-break?type=fixed-bundle&productId=' +
+        encodeURIComponent(productId) +
+        '&shop=' +
+        encodeURIComponent(shop);
+
+    fetch(apiUrl)
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data.offers || !data.offers.length) return;
+
+        var html =
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;' +
+          'letter-spacing:0.08em;color:#6b7280;margin-bottom:10px;">Bundle Offers</div>';
+
+        data.offers.forEach(function (offer) {
+          var pct      = offer.offerPercentage;
+          var products = offer.products || [];
+
+          var productTitles = products.map(function (p) { return p.title; });
+
+          var comboText =
+            'Combine <strong>' +
+            productTitles.join(' + ') +
+            '</strong> and get <strong>' + pct + '% off</strong>!';
+
+          var thumbsWithSep = products.map(function (p, idx) {
+            var imgSrc = p.imageUrl || '';
+            var thumb =
+              '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
+                (imgSrc
+                  ? '<img src="' + imgSrc + '" width="48" height="48" ' +
+                    'style="border-radius:6px;object-fit:cover;border:1px solid #e5e7eb;" ' +
+                    'alt="' + p.title + '">'
+                  : '<div style="width:48px;height:48px;border-radius:6px;background:#f3f4f6;' +
+                    'border:1px solid #e5e7eb;"></div>') +
+                '<span style="font-size:11px;color:#6b7280;max-width:56px;text-align:center;' +
+                'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+                p.title + '</span>' +
+              '</div>';
+            if (idx < products.length - 1) {
+              thumb +=
+                '<span style="font-size:18px;color:#9ca3af;align-self:flex-start;margin-top:12px;">+</span>';
+            }
+            return thumb;
+          }).join('');
+
+          html +=
+            '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;' +
+            'margin-bottom:8px;background:#fff;">' +
+
+              '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+                '<div style="font-size:14px;font-weight:600;color:#111827;">' + offer.title + '</div>' +
+                (pct
+                  ? '<div style="background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;' +
+                    'padding:4px 10px;border-radius:20px;white-space:nowrap;">' + pct + '% OFF</div>'
+                  : '') +
+              '</div>' +
+
+              '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;flex-wrap:wrap;">' +
+                thumbsWithSep +
+              '</div>' +
+
+              '<div style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.4;">' +
+                comboText +
+              '</div>' +
+
+            '</div>';
+        });
+
+        root.innerHTML = html;
+        root.style.display = 'block';
+      })
+      .catch(function (err) {
+        console.error('[FixedBundle]', err);
+      });
+  }
+
+  function boot() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', mountWidget);
+    } else {
+      mountWidget();
+    }
+
+    var observer = new MutationObserver(function () {
+      if (document.querySelector('form[action*="/cart/add"]')) {
+        observer.disconnect();
+        mountWidget();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  boot();
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Fixed Bundle Offers",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

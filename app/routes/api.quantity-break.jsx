@@ -44,6 +44,7 @@ export async function loader({ request }) {
 
   const matchedOffer = await prisma.quantityBreakOffer.findFirst({
     where: {
+      status: "active",
       OR: [
         { applyTo: "allProducts" },
         { applyTo: "excludeProducts" },
@@ -98,6 +99,7 @@ export async function action({ request }) {
         applyTo,
         discountTitle,
         discountDescription,
+        status,
         tiers,
         products,
         excludedProducts,
@@ -138,6 +140,7 @@ export async function action({ request }) {
           applyTo,
           discountTitle,
           discountDescription,
+          status,
           startDate: startDate ? new Date(startDate) : null,
           endDate: endDate ? new Date(endDate) : null,
           tiers: {
@@ -190,6 +193,7 @@ export async function action({ request }) {
             value: Number(tier.value),
             discountType: tier.discountType,
           })),
+          status: status || "active",
         };
 
         const UPDATE_DISCOUNT = `
@@ -239,6 +243,7 @@ export async function action({ request }) {
       applyTo,
       discountTitle,
       discountDescription,
+      status,
       tiers,
       products,
       excludedProducts,
@@ -269,6 +274,7 @@ export async function action({ request }) {
         applyTo,
         discountTitle,
         discountDescription,
+        status,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         tiers: {
@@ -319,6 +325,7 @@ export async function action({ request }) {
         value: Number(tier.value),
         discountType: tier.discountType,
       })),
+      status: status || "active",
     };
 
     const CREATE_AUTOMATIC_DISCOUNT = `

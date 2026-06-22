@@ -17,6 +17,35 @@ function corsHeaders() {
   };
 }
 
+// ── Reusable session resolver ─────────────────────────────────────────────────
+async function getSession(shopDomain) {
+  return (
+    (await prisma.session.findFirst({
+      where: { shop: shopDomain, expires: null },
+    })) ??
+    (await prisma.session.findFirst({
+      where: { shop: shopDomain },
+      orderBy: { id: "desc" },
+    }))
+  );
+}
+
+// ── Reusable admin GraphQL fetch ──────────────────────────────────────────────
+async function adminGraphQL(shopDomain, accessToken, query, variables = {}) {
+  const res = await fetch(
+    `https://${shopDomain}/admin/api/2025-01/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: JSON.stringify({ query, variables }),
+    },
+  );
+  return res.json();
+}
+
 export async function loader({ request }) {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders() });
@@ -40,6 +69,7 @@ export async function loader({ request }) {
   const url = new URL(request.url);
   const rawId = url.searchParams.get("productId");
   const productId = normalizeProductId(rawId);
+  const type = url.searchParams.get("type");
 
   if (!productId) {
     return Response.json(
@@ -48,8 +78,143 @@ export async function loader({ request }) {
     );
   }
 
+  // ── FBT offers ───────────────────────────────────────────────────────────────
+  if (type === "fbt" && productId) {
+    const now = new Date();
+
+    const shop = await prisma.shop.findUnique({
+      where: { domain: shopDomain },
+    });
+    if (!shop) {
+      return Response.json({ offer: null }, { headers: corsHeaders() });
+    }
+
+    // Fetch all active FBT offers for this shop within date range
+    const allFbtOffers = await prisma.frequentlyBoughtOffer.findMany({
+      where: {
+        shopId: shop.id,
+        status: "active",
+        OR: [{ startDate: null }, { startDate: { lte: now } }],
+        AND: [{ OR: [{ endDate: null }, { endDate: { gte: now } }] }],
+      },
+      include: {
+        triggerProducts: true,
+        bundledProducts: { orderBy: { position: "asc" } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!allFbtOffers.length) {
+      return Response.json({ offer: null }, { headers: corsHeaders() });
+    }
+
+    // Priority 1 — offer whose triggerProducts include this product
+    // Priority 2 — offer with no triggerProducts (alwaysDisplay)
+    const matched =
+      allFbtOffers.find((o) =>
+        o.triggerProducts.some(
+          (p) => normalizeProductId(p.productId) === productId,
+        ),
+      ) || allFbtOffers.find((o) => o.triggerProducts.length === 0);
+
+    if (!matched) {
+      return Response.json({ offer: null }, { headers: corsHeaders() });
+    }
+
+    // Resolve bundled product handles + variant IDs via Admin API
+    let bundledProducts = matched.bundledProducts.map((p) => ({
+      productId: p.productId,
+      title: p.title,
+      position: p.position,
+      handle: null,
+      variantId: null,
+      image: null,
+      price: null,
+    }));
+
+    const sessionToUse = await getSession(shopDomain);
+
+    if (sessionToUse?.accessToken && bundledProducts.length) {
+      try {
+        const gids = matched.bundledProducts.map(
+          (p) => `gid://shopify/Product/${p.productId}`,
+        );
+
+        const data = await adminGraphQL(
+          shopDomain,
+          sessionToUse.accessToken,
+          `query getBundledProducts($ids: [ID!]!) {
+            nodes(ids: $ids) {
+              ... on Product {
+                id
+                handle
+                title
+                featuredImage { url }
+                variants(first: 1) {
+                  edges {
+                    node {
+                      id
+                      price
+                    }
+                  }
+                }
+              }
+            }
+          }`,
+          { ids: gids },
+        );
+
+        const nodes = data?.data?.nodes ?? [];
+        const productMap = {};
+
+        nodes.forEach((node) => {
+          if (!node) return;
+          const numericId = node.id.replace("gid://shopify/Product/", "");
+          productMap[numericId] = {
+            handle: node.handle,
+            title: node.title,
+            image: node.featuredImage?.url ?? null,
+            price: node.variants?.edges?.[0]?.node?.price ?? null,
+            variantId:
+              node.variants?.edges?.[0]?.node?.id?.replace(
+                "gid://shopify/ProductVariant/",
+                "",
+              ) ?? null,
+          };
+        });
+
+        bundledProducts = bundledProducts.map((p) => ({
+          ...p,
+          ...(productMap[p.productId] ?? {}),
+        }));
+      } catch (err) {
+        console.error("[FBT] Bundled product enrichment failed:", err);
+      }
+    }
+
+    return Response.json(
+      {
+        offer: {
+          id: matched.id,
+          discountTitle: matched.discountTitle,
+          discountDescription: null, // add field to schema if needed
+          discountType: matched.discountType,
+          discountValue: matched.discountValue,
+        },
+        bundledProducts,
+      },
+      { headers: corsHeaders() },
+    );
+  }
+
+  // ── Quantity break offer ──────────────────────────────────────────────────────
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const matchedOffer = await prisma.quantityBreakOffer.findFirst({
     where: {
+      status: "active",
+
       OR: [
         { applyTo: "allProducts" },
         { applyTo: "excludeProducts" },
@@ -72,6 +237,15 @@ export async function loader({ request }) {
 
   let finalOffer = matchedOffer;
 
+  if (finalOffer?.endDate) {
+    const endDate = new Date(finalOffer.endDate);
+    endDate.setHours(0, 0, 0, 0);
+
+    if (endDate < today) {
+      finalOffer = null;
+    }
+  }
+
   if (matchedOffer?.applyTo === "excludeProducts") {
     const isExcluded = await prisma.quantityBreakProduct.findFirst({
       where: { offerId: matchedOffer.id, productId, isExcluded: true },
@@ -88,44 +262,25 @@ export async function loader({ request }) {
     let productCollectionIds = [];
 
     try {
-      const sessionToUse =
-        (await prisma.session.findFirst({
-          where: { shop: shopDomain, expires: null },
-        })) ??
-        (await prisma.session.findFirst({
-          where: { shop: shopDomain },
-          orderBy: { id: "desc" },
-        }));
+      const sessionToUse = await getSession(shopDomain);
 
       if (sessionToUse?.accessToken) {
-        const res = await fetch(
-          `https://${shopDomain}/admin/api/2025-01/graphql.json`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Shopify-Access-Token": sessionToUse.accessToken,
-            },
-            body: JSON.stringify({
-              query: `query getProduct($id: ID!) {
-                product(id: $id) {
-                  vendor
-                  productType
-                  collections(first: 50) {
-                    edges { node { id } }
-                  }
-                }
-              }`,
-              variables: {
-                id: `gid://shopify/Product/${productId}`,
-              },
-            }),
-          },
+        const data = await adminGraphQL(
+          shopDomain,
+          sessionToUse.accessToken,
+          `query getProduct($id: ID!) {
+            product(id: $id) {
+              vendor
+              productType
+              collections(first: 50) {
+                edges { node { id } }
+              }
+            }
+          }`,
+          { id: `gid://shopify/Product/${productId}` },
         );
 
-        const data = await res.json();
         const product = data?.data?.product;
-
         if (product) {
           productVendor = product.vendor?.trim().toLowerCase() ?? null;
           productType = product.productType?.trim().toLowerCase() ?? null;
@@ -134,8 +289,7 @@ export async function loader({ request }) {
           );
         }
       }
-    } catch (err) {
-    }
+    } catch (err) {}
 
     const offerVendors = matchedOffer.vendors.map((v) =>
       v.vendor.trim().toLowerCase(),
@@ -173,78 +327,63 @@ export async function loader({ request }) {
     }
   }
 
+  // ── Native Shopify discounts ──────────────────────────────────────────────────
   let nativeDiscounts = [];
 
   if (shopDomain) {
     try {
-      const sessionToUse =
-        (await prisma.session.findFirst({
-          where: { shop: shopDomain, expires: null },
-        })) ??
-        (await prisma.session.findFirst({
-          where: { shop: shopDomain },
-          orderBy: { id: "desc" },
-        }));
+      const sessionToUse = await getSession(shopDomain);
 
       if (sessionToUse?.accessToken) {
-        const gqlRes = await fetch(
-          `https://${shopDomain}/admin/api/2025-01/graphql.json`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Shopify-Access-Token": sessionToUse.accessToken,
-            },
-            body: JSON.stringify({
-              query: `query {
-                automaticDiscountNodes(first: 50) {
-                  edges {
-                    node {
-                      id
-                      automaticDiscount {
-                        ... on DiscountAutomaticBasic {
-                          title status startsAt endsAt summary
-                          customerGets {
-                            value {
-                              ... on DiscountPercentage { percentage }
-                              ... on DiscountAmount {
-                                amount { amount currencyCode }
-                              }
+        const gqlData = await adminGraphQL(
+          shopDomain,
+          sessionToUse.accessToken,
+          `query {
+            automaticDiscountNodes(first: 50) {
+              edges {
+                node {
+                  id
+                  automaticDiscount {
+                    ... on DiscountAutomaticBasic {
+                      title status startsAt endsAt summary
+                      customerGets {
+                        value {
+                          ... on DiscountPercentage { percentage }
+                          ... on DiscountAmount {
+                            amount { amount currencyCode }
+                          }
+                        }
+                        items {
+                          ... on AllDiscountItems { allItems }
+                          ... on DiscountProducts {
+                            products(first: 50) {
+                              edges { node { id } }
                             }
-                            items {
-                              ... on AllDiscountItems { allItems }
-                              ... on DiscountProducts {
-                                products(first: 50) {
-                                  edges { node { id } }
-                                }
-                              }
-                              ... on DiscountCollections {
-                                collections(first: 20) {
-                                  edges { node { id } }
-                                }
-                              }
+                          }
+                          ... on DiscountCollections {
+                            collections(first: 20) {
+                              edges { node { id } }
                             }
                           }
                         }
-                        ... on DiscountAutomaticBxgy { title status startsAt endsAt summary }
-                        ... on DiscountAutomaticFreeShipping { title status startsAt endsAt summary }
-                        ... on DiscountAutomaticApp { title status startsAt endsAt }
                       }
                     }
+                    ... on DiscountAutomaticBxgy { title status startsAt endsAt summary }
+                    ... on DiscountAutomaticFreeShipping { title status startsAt endsAt summary }
+                    ... on DiscountAutomaticApp { title status startsAt endsAt }
                   }
                 }
-              }`,
-            }),
-          },
+              }
+            }
+          }`,
         );
 
-        const gqlData = await gqlRes.json();
         const edges = gqlData?.data?.automaticDiscountNodes?.edges || [];
         const productGid = `gid://shopify/Product/${productId}`;
 
         nativeDiscounts = edges
           .map((e) => e.node.automaticDiscount)
-          .filter((d) => d?.status === "ACTIVE")
+          .filter((d) => d?.status === "active")
           .filter((d) => {
             if (!d.customerGets) return true;
             const items = d.customerGets?.items;
@@ -279,6 +418,224 @@ export async function loader({ request }) {
     } catch (err) {
       console.error("[QB] Native discount fetch failed:", err);
     }
+  }
+
+  // ── BXGY offers ───────────────────────────────────────────────────────────────
+  if (type === "bxgy" && productId) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const allBxgyOffers = await prisma.bxgyOffer.findMany({
+      where: {
+        status: "active",
+        AND: [
+          {
+            OR: [{ startDate: null }, { startDate: { lte: today } }],
+          },
+          {
+            OR: [{ endDate: null }, { endDate: { gte: today } }],
+          },
+        ],
+      },
+      include: {
+        products: true,
+        vendors: true,
+        productTypes: true,
+        collections: true,
+        productGift: { include: { giftProducts: true } },
+        shippingGift: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const sessionToUse = await getSession(shopDomain);
+
+    let productVendor = null;
+    let productType = null;
+    let productCollectionIds = [];
+
+    const needsAdminLookup = allBxgyOffers.some(
+      (o) => o.applyTo === "productsInSelectedVendorTypeCollection",
+    );
+
+    if (needsAdminLookup && sessionToUse?.accessToken) {
+      try {
+        const data = await adminGraphQL(
+          shopDomain,
+          sessionToUse.accessToken,
+          `query getProduct($id: ID!) {
+            product(id: $id) {
+              vendor
+              productType
+              collections(first: 50) {
+                edges { node { id } }
+              }
+            }
+          }`,
+          { id: `gid://shopify/Product/${productId}` },
+        );
+
+        const product = data?.data?.product;
+        if (product) {
+          productVendor = product.vendor?.trim().toLowerCase() ?? null;
+          productType = product.productType?.trim().toLowerCase() ?? null;
+          productCollectionIds = product.collections.edges.map((e) =>
+            e.node.id.replace("gid://shopify/Collection/", ""),
+          );
+        }
+      } catch (err) {
+        console.error("[BXGY] Admin product lookup failed:", err);
+      }
+    }
+
+    const matchedBxgy = allBxgyOffers.filter((offer) => {
+      switch (offer.applyTo) {
+        case "selectedProducts":
+          return offer.products.some(
+            (p) => p.productId === productId && !p.isExcluded,
+          );
+
+        case "productsInSelectedVendorTypeCollection": {
+          const offerVendors = offer.vendors.map((v) =>
+            v.vendor.trim().toLowerCase(),
+          );
+          const offerTypes = offer.productTypes.map((t) =>
+            t.productType.trim().toLowerCase(),
+          );
+          const offerCollectionIds = offer.collections.map((c) =>
+            String(c.collectionId),
+          );
+
+          const vendorMatch =
+            offerVendors.length > 0 && productVendor
+              ? offerVendors.includes(productVendor)
+              : false;
+
+          const typeMatch =
+            offerTypes.length > 0 && productType
+              ? offerTypes.includes(productType)
+              : false;
+
+          const collectionMatch =
+            offerCollectionIds.length > 0
+              ? productCollectionIds.some((id) =>
+                  offerCollectionIds.includes(id),
+                )
+              : false;
+
+          return vendorMatch || typeMatch || collectionMatch;
+        }
+
+        default:
+          return false;
+      }
+    });
+
+    if (matchedBxgy.length && sessionToUse?.accessToken) {
+      const allGiftProductIds = [];
+      matchedBxgy.forEach((offer) => {
+        if (offer.productGift?.giftProducts) {
+          offer.productGift.giftProducts.forEach((gp) => {
+            allGiftProductIds.push(gp.productId);
+          });
+        }
+      });
+
+      if (allGiftProductIds.length) {
+        try {
+          const gqlData = await adminGraphQL(
+            shopDomain,
+            sessionToUse.accessToken,
+            `query getProducts($ids: [ID!]!) {
+              nodes(ids: $ids) {
+                ... on Product {
+                  id
+                  handle
+                  variants(first: 1) {
+                    edges { node { id } }
+                  }
+                }
+              }
+            }`,
+            {
+              ids: allGiftProductIds.map((id) => `gid://shopify/Product/${id}`),
+            },
+          );
+
+          const nodes = gqlData?.data?.nodes || [];
+          const productMap = {};
+
+          nodes.forEach((node) => {
+            if (!node) return;
+            const numericId = node.id.replace("gid://shopify/Product/", "");
+            productMap[numericId] = {
+              handle: node.handle,
+              variantId: node.variants.edges[0]?.node?.id?.replace(
+                "gid://shopify/ProductVariant/",
+                "",
+              ),
+            };
+          });
+
+          matchedBxgy.forEach((offer) => {
+            if (offer.productGift?.giftProducts) {
+              offer.productGift.giftProducts =
+                offer.productGift.giftProducts.map((gp) => {
+                  const info = productMap[gp.productId] || {};
+                  return {
+                    ...gp,
+                    handle: info.handle || null,
+                    variantId: info.variantId || null,
+                  };
+                });
+            }
+          });
+        } catch (err) {
+          console.error("[BXGY] Gift product enrichment failed:", err);
+        }
+      }
+    }
+
+    return Response.json({ offers: matchedBxgy }, { headers: corsHeaders() });
+  }
+
+  // ── Fixed bundle offers ───────────────────────────────────────────────────────
+  if (type === "fixed-bundle" && productId) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const allBundles = await prisma.fixedBundleOffer.findMany({
+      where: {
+        status: "active",
+        OR: [{ startDate: null }, { startDate: { lte: today } }],
+        AND: [{ OR: [{ endDate: null }, { endDate: { gte: today } }] }],
+      },
+      include: {
+        products: { orderBy: { position: "asc" } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const matchedBundles = allBundles.filter((bundle) =>
+      bundle.products.some(
+        (p) => normalizeProductId(p.productId) === productId,
+      ),
+    );
+
+    const offers = matchedBundles.map((bundle) => ({
+      id: bundle.id,
+      title: bundle.title,
+      description: bundle.description,
+      offerPercentage: bundle.offerPercentage,
+      products: bundle.products.map((p) => ({
+        id: p.productId,
+        title: p.title,
+        imageUrl: p.imageUrl,
+        vendor: p.vendor,
+      })),
+    }));
+
+    return Response.json({ offers }, { headers: corsHeaders() });
   }
 
   return Response.json(
