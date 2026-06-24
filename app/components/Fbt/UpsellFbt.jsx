@@ -49,9 +49,8 @@ function SummaryRow({ label, value }) {
 
 function StatusBadge({ status }) {
   const map = {
-    ACTIVE: ["#d4edda", "#00a651"],
-    PAUSED: ["#fff3cd", "#f5a623"],
-    DRAFT: ["#f1f2f3", "#8c9196"],
+    active: ["#d4edda", "#00a651"],
+    inactive: ["#fff3cd", "#f5a623"],
   };
   const [bg, color] = map[status] ?? map.DRAFT;
   return (
@@ -163,7 +162,7 @@ export default function UpsellFbt({ offer }) {
   const [endDate, setEndDate] = useState(
     offer?.endDate ? new Date(offer.endDate).toISOString().split("T")[0] : "",
   );
-  const [status, setStatus] = useState(offer?.status ?? "ACTIVE");
+  const [status, setStatus] = useState(offer?.status ?? "active");
 
   // Trigger
   const [applyTo, setApplyTo] = useState(offer?.applyTo ?? "allProducts");
@@ -324,9 +323,8 @@ export default function UpsellFbt({ offer }) {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
-                <s-option value="ACTIVE">Active</s-option>
-                <s-option value="PAUSED">Paused</s-option>
-                <s-option value="DRAFT">Draft</s-option>
+                <s-option value="active">Active</s-option>
+                <s-option value="inactive">Inactive</s-option>
               </s-select>
             </s-stack>
           </s-card>

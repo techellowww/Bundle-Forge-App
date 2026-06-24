@@ -92,7 +92,7 @@ export async function action({ request }) {
   const offerData = {
     title: title.trim(),
     discountTitle: discountTitle?.trim() || null,
-    status: status ?? "ACTIVE",
+    status: status ?? "active",
     applyTo: applyTo ?? "allProducts",
     discountType: discountType || null,
     discountValue: discountValue != null ? Number(discountValue) : null,

@@ -43,7 +43,7 @@ model Shop {
 
   // Billing & Plan
   plan           PlanType      @default(FREE)
-  billingStatus  BillingStatus @default(INACTIVE)
+  billingStatus  BillingStatus @default(inactive)
   subscriptionId String?       @unique
 
   // Timestamps
@@ -99,7 +99,7 @@ model Offer {
 
   title  String
   type   OfferType
-  status OfferStatus @default(ACTIVE)
+  status OfferStatus @default(active)
 
   priority Int @default(1)
 
@@ -153,10 +153,8 @@ enum OfferType {
 }
 
 enum OfferStatus {
-  ACTIVE
-  PAUSED
-  DRAFT
-  EXPIRED
+  active
+  inactive
 }
 
 enum RewardType {
@@ -172,10 +170,8 @@ enum PlanType {
 }
 
 enum BillingStatus {
-  ACTIVE
-  INACTIVE
-  CANCELLED
-  EXPIRED
+  active
+  inactive
 }
 
 enum DiscountType {
