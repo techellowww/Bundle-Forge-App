@@ -153,7 +153,7 @@ function buildShopifyConfig(body) {
           freeShippingLabel: shippingGift.freeShippingLabel ?? null,
         }
       : null,
-      status,
+    status,
   };
 }
 
@@ -168,14 +168,15 @@ const fullInclude = {
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 export async function loader({ request }) {
-  await authenticate.admin(request);
-
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
 
+  const { session } = await authenticate.admin(request);
+  const shop = await db.shop.findUnique({ where: { domain: session.shop } });
+
   if (id) {
     const offer = await db.bxgyOffer.findFirst({
-      where: { id },
+      where: { id, shopId: shop.id },
       include: fullInclude,
     });
     if (!offer)
@@ -187,6 +188,7 @@ export async function loader({ request }) {
   }
 
   const offers = await db.bxgyOffer.findMany({
+    where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
     include: fullInclude,
   });
@@ -196,7 +198,17 @@ export async function loader({ request }) {
 
 // ── POST / PUT / DELETE ───────────────────────────────────────────────────────
 export async function action({ request }) {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+
+  const shop = await db.shop.findUnique({
+    where: {
+      domain: session.shop,
+    },
+  });
+
+  if (!shop) {
+    return badRequest("Shop not found");
+  }
 
   const method = request.method.toUpperCase();
 
@@ -206,11 +218,12 @@ export async function action({ request }) {
     if (!id) return badRequest("Missing offer id");
 
     const offer = await db.bxgyOffer.findFirst({ where: { id } });
-    if (!offer)
+    if (!offer || offer.shopId !== shop?.id) {
       return Response.json(
-        { success: false, error: "Not found" },
+        { success: false, error: "Offer not found" },
         { status: 404 },
       );
+    }
 
     if (offer.shopifyDiscountId) {
       try {
@@ -302,7 +315,10 @@ export async function action({ request }) {
     if (method === "POST") {
       dbOffer = await db.$transaction(async (tx) => {
         const created = await tx.bxgyOffer.create({
-          data: { ...offerScalars },
+          data: {
+            ...offerScalars,
+            shopId: shop.id,
+          },
         });
         await replaceRelations(tx, created.id, {
           products,
@@ -378,14 +394,21 @@ export async function action({ request }) {
     if (!id) return badRequest("id is required for update");
 
     const existing = await db.bxgyOffer.findFirst({ where: { id } });
-    if (!existing)
+    if (!existing || existing.shopId !== shop.id) {
       return Response.json(
         { success: false, error: "Offer not found" },
         { status: 404 },
       );
+    }
 
     dbOffer = await db.$transaction(async (tx) => {
-      await tx.bxgyOffer.update({ where: { id }, data: offerScalars });
+      await tx.bxgyOffer.update({
+        where: { id },
+        data: {
+          ...offerScalars,
+          shopId: shop.id,
+        },
+      });
       await replaceRelations(tx, id, {
         products,
         vendors,
@@ -432,9 +455,50 @@ export async function action({ request }) {
         },
       );
 
+      // After the existing discountAutomaticAppUpdate call...
       const updateResult = await updateRes.json();
       const userErrors =
         updateResult?.data?.discountAutomaticAppUpdate?.userErrors || [];
+      if (userErrors.length) throw new Error(userErrors[0].message);
+
+      // ── SYNC STATUS TO SHOPIFY ──────────────────────────────────────────────
+      const newStatus = (status || "active").toLowerCase();
+      const currentStatus = existing.status?.toLowerCase();
+
+      if (newStatus !== currentStatus) {
+        if (newStatus === "active") {
+          const activateRes = await admin.graphql(
+            `mutation discountAutomaticActivate($id: ID!) {
+        discountAutomaticActivate(id: $id) {
+          automaticDiscountNode { id }
+          userErrors { field message }
+        }
+      }`,
+            { variables: { id: existing.shopifyDiscountId } },
+          );
+          const activateResult = await activateRes.json();
+          const activateErrors =
+            activateResult?.data?.discountAutomaticActivate?.userErrors || [];
+          if (activateErrors.length)
+            console.warn("Activate error:", activateErrors[0].message);
+        } else {
+          const deactivateRes = await admin.graphql(
+            `mutation discountAutomaticDeactivate($id: ID!) {
+        discountAutomaticDeactivate(id: $id) {
+          automaticDiscountNode { id }
+          userErrors { field message }
+        }
+      }`,
+            { variables: { id: existing.shopifyDiscountId } },
+          );
+          const deactivateResult = await deactivateRes.json();
+          const deactivateErrors =
+            deactivateResult?.data?.discountAutomaticDeactivate?.userErrors ||
+            [];
+          if (deactivateErrors.length)
+            console.warn("Deactivate error:", deactivateErrors[0].message);
+        }
+      }
       if (userErrors.length) throw new Error(userErrors[0].message);
     }
 

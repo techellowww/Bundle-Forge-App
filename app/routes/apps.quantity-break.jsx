@@ -208,8 +208,10 @@ export async function loader({ request }) {
   }
 
   // ── Quantity break offer ──────────────────────────────────────────────────────
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
 
   const matchedOffer = await prisma.quantityBreakOffer.findFirst({
     where: {
@@ -422,9 +424,13 @@ export async function loader({ request }) {
 
   // ── BXGY offers ───────────────────────────────────────────────────────────────
   if (type === "bxgy" && productId) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
 
+    console.log("DATABASE URL =", process.env.DATABASE_URL);
+    console.log("NODE_ENV =", process.env.NODE_ENV);
     const allBxgyOffers = await prisma.bxgyOffer.findMany({
       where: {
         status: "active",
@@ -447,6 +453,14 @@ export async function loader({ request }) {
       },
       orderBy: { createdAt: "desc" },
     });
+    console.log(
+      "ALL BXGY OFFERS",
+      allBxgyOffers.map((o) => ({
+        id: o.id,
+        title: o.title,
+        products: o.products.map((p) => p.productId),
+      })),
+    );
 
     const sessionToUse = await getSession(shopDomain);
 
@@ -531,18 +545,25 @@ export async function loader({ request }) {
       }
     });
 
+    // ── ENRICH GIFT PRODUCTS WITH VARIANT IDS ──────────────────────────────────
     if (matchedBxgy.length && sessionToUse?.accessToken) {
       const allGiftProductIds = [];
       matchedBxgy.forEach((offer) => {
         if (offer.productGift?.giftProducts) {
           offer.productGift.giftProducts.forEach((gp) => {
-            allGiftProductIds.push(gp.productId);
+            const normalized = normalizeProductId(gp.productId);
+            allGiftProductIds.push(normalized);
           });
         }
       });
 
       if (allGiftProductIds.length) {
         try {
+          console.log(
+            "[BXGY] Fetching variant data for gift products:",
+            allGiftProductIds,
+          );
+
           const gqlData = await adminGraphQL(
             shopDomain,
             sessionToUse.accessToken,
@@ -568,20 +589,40 @@ export async function loader({ request }) {
           nodes.forEach((node) => {
             if (!node) return;
             const numericId = node.id.replace("gid://shopify/Product/", "");
+            const variantId = node.variants?.edges?.[0]?.node?.id?.replace(
+              "gid://shopify/ProductVariant/",
+              "",
+            );
+
+            console.log("[BXGY] Enriched gift product:", {
+              productId: numericId,
+              handle: node.handle,
+              variantId: variantId || "MISSING",
+            });
+
             productMap[numericId] = {
               handle: node.handle,
-              variantId: node.variants.edges[0]?.node?.id?.replace(
-                "gid://shopify/ProductVariant/",
-                "",
-              ),
+              variantId: variantId || null,
             };
           });
+
+          console.log("[BXGY] Product map keys:", Object.keys(productMap));
 
           matchedBxgy.forEach((offer) => {
             if (offer.productGift?.giftProducts) {
               offer.productGift.giftProducts =
                 offer.productGift.giftProducts.map((gp) => {
-                  const info = productMap[gp.productId] || {};
+                  const normalizedId = normalizeProductId(gp.productId);
+                  const info = productMap[normalizedId] || {};
+
+                  console.log("[BXGY] Mapping gift product:", {
+                    title: gp.title,
+                    originalId: gp.productId,
+                    normalizedId: normalizedId,
+                    found: !!info.variantId,
+                    variantId: info.variantId || "NOT FOUND",
+                  });
+
                   return {
                     ...gp,
                     handle: info.handle || null,
@@ -601,8 +642,10 @@ export async function loader({ request }) {
 
   // ── Fixed bundle offers ───────────────────────────────────────────────────────
   if (type === "fixed-bundle" && productId) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
 
     const allBundles = await prisma.fixedBundleOffer.findMany({
       where: {

@@ -2,15 +2,18 @@ import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 
 export async function action({ request }) {
+  const { session, admin } = await authenticate.admin(request);
+  const shop = await prisma.shop.findUnique({
+    where: { domain: session.shop },
+  });
+
   try {
-    const { admin } = await authenticate.admin(request);
     const { id } = await request.json();
+    const offer = await prisma.quantityBreakOffer.findUnique({ where: { id } });
 
-    const offer = await prisma.quantityBreakOffer.findUnique({
-      where: { id },
-    });
-
-    if (!offer) throw new Error("Offer not found");
+    if (!offer || offer.shopId !== shop?.id) {
+      throw new Error("Offer not found");
+    }
 
     if (offer.shopifyDiscountId) {
       const DELETE_MUTATION = `

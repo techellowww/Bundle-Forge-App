@@ -7,6 +7,8 @@ import GiftSection from "./GiftSection";
 const BuyXGetY = ({ offer = null }) => {
   const navigate = useNavigate();
   const isEditing = !!offer;
+  console.log("offer", offer);
+  console.log("isEditing", isEditing);
 
   // Basic info
   const [title, setTitle] = useState(offer?.title ?? "Buy More Save More");
@@ -93,6 +95,8 @@ const BuyXGetY = ({ offer = null }) => {
     offer?.shippingGift?.freeShippingLabel || "",
   );
 
+  const resolveProductId = (p) => (p.productId ? p.productId : extractId(p.id));
+
   const extractId = (gid) =>
     gid && gid.includes("/") ? gid.split("/").pop() : gid;
 
@@ -129,12 +133,12 @@ const BuyXGetY = ({ offer = null }) => {
         status,
         products: [
           ...(selectedProducts || []).map((p) => ({
-            productId: extractId(p.id),
+            productId: resolveProductId(p),
             title: p.title,
             isExcluded: false,
           })),
           ...(excludedProducts || []).map((p) => ({
-            productId: extractId(p.id),
+            productId: resolveProductId(p),
             title: p.title,
             isExcluded: true,
           })),
@@ -144,7 +148,7 @@ const BuyXGetY = ({ offer = null }) => {
           productType,
         })),
         collections: (selectedCollections || []).map((c) => ({
-          collectionId: extractId(c.id),
+          collectionId: c.collectionId ? c.collectionId : extractId(c.id),
           title: c.title,
         })),
         productGift:
@@ -155,7 +159,7 @@ const BuyXGetY = ({ offer = null }) => {
                   giftDiscountType === "free" ? null : Number(giftValue),
                 giftQuantity: Number(giftQuantity) || 1,
                 giftProducts: (giftProducts || []).map((p) => ({
-                  productId: extractId(p.id),
+                  productId: resolveProductId(p),
                   title: p.title,
                 })),
               }

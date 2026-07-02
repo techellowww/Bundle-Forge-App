@@ -42,8 +42,19 @@ export async function loader({ request }) {
     );
   }
 
+  const { session } = await authenticate.public.appProxy(request);
+  const shop = await prisma.shop.findUnique({
+    where: { domain: session.shop },
+  });
+  if (!shop)
+    return Response.json(
+      { tiers: [], discounts: [] },
+      { headers: corsHeaders() },
+    );
+
   const matchedOffer = await prisma.quantityBreakOffer.findFirst({
     where: {
+      shopId: shop.id,
       status: "active",
       OR: [
         { applyTo: "allProducts" },
@@ -88,7 +99,18 @@ export async function action({ request }) {
   let offer = null;
 
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
+
+    const shop = await prisma.shop.findUnique({
+      where: {
+        domain: session.shop,
+      },
+    });
+
+    if (!shop) {
+      throw new Error("Shop not found");
+    }
+
     const body = await request.json();
 
     // ── UPDATE path ──────────────────────────────────────────────
@@ -124,6 +146,18 @@ export async function action({ request }) {
 
       const allProducts = [...normalizedProducts, ...normalizedExcluded];
 
+      const existingOffer = await prisma.quantityBreakOffer.findUnique({
+        where: { id },
+        select: { status: true, shopifyDiscountId: true, shopId: true },
+      });
+
+      if (!existingOffer || existingOffer.shopId !== shop.id) {
+        return Response.json(
+          { success: false, error: "Offer not found" },
+          { status: 404 },
+        );
+      }
+
       // Delete all related records first, then recreate
       await prisma.quantityBreakTier.deleteMany({ where: { offerId: id } });
       await prisma.quantityBreakProduct.deleteMany({ where: { offerId: id } });
@@ -136,6 +170,7 @@ export async function action({ request }) {
       const updatedOffer = await prisma.quantityBreakOffer.update({
         where: { id },
         data: {
+          shopId: shop.id,
           title,
           applyTo,
           discountTitle,
@@ -234,6 +269,42 @@ export async function action({ request }) {
         }
       }
 
+      const newStatus = (status || "active").toLowerCase();
+      const currentStatus = existingOffer.status?.toLowerCase();
+
+      if (newStatus !== currentStatus && existingOffer.shopifyDiscountId) {
+        const statusMutation =
+          newStatus === "active"
+            ? `mutation discountAutomaticActivate($id: ID!) {
+          discountAutomaticActivate(id: $id) {
+            automaticDiscountNode { id }
+            userErrors { field message }
+          }
+        }`
+            : `mutation discountAutomaticDeactivate($id: ID!) {
+          discountAutomaticDeactivate(id: $id) {
+            automaticDiscountNode { id }
+            userErrors { field message }
+          }
+        }`;
+
+        const statusRes = await admin.graphql(statusMutation, {
+          variables: { id: existingOffer.shopifyDiscountId }, // ← existingOffer
+        });
+        const statusData = await statusRes.json();
+        console.log(
+          "[QB-MAIN] status mutation result:",
+          JSON.stringify(statusData),
+        );
+
+        const statusErrors =
+          statusData?.data?.discountAutomaticActivate?.userErrors ||
+          statusData?.data?.discountAutomaticDeactivate?.userErrors ||
+          [];
+        if (statusErrors.length)
+          console.warn("[QB-MAIN] Status sync error:", statusErrors[0].message);
+      }
+
       return Response.json({ success: true, offer: updatedOffer });
     }
 
@@ -270,6 +341,7 @@ export async function action({ request }) {
 
     offer = await prisma.quantityBreakOffer.create({
       data: {
+        shopId: shop.id,
         title,
         applyTo,
         discountTitle,
@@ -297,13 +369,6 @@ export async function action({ request }) {
             collectionId: String(c.collectionId),
           })),
         },
-      },
-      include: {
-        tiers: true,
-        products: true,
-        vendors: true,
-        types: true,
-        collections: true,
       },
     });
 
@@ -385,7 +450,6 @@ export async function action({ request }) {
 
     return Response.json({ success: true, offer, shopify: result });
   } catch (error) {
-
     if (offer?.id) {
       await prisma.quantityBreakOffer.delete({ where: { id: offer.id } });
     }

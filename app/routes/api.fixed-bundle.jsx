@@ -211,6 +211,37 @@ export async function action({ request }) {
       );
     }
 
+    const newStatus = (status || "active").toLowerCase();
+    const currentStatus = existing.status?.toLowerCase();
+
+    if (newStatus !== currentStatus) {
+      const statusMutation =
+        newStatus === "active"
+          ? `mutation discountAutomaticActivate($id: ID!) {
+          discountAutomaticActivate(id: $id) {
+            automaticDiscountNode { id }
+            userErrors { field message }
+          }
+        }`
+          : `mutation discountAutomaticDeactivate($id: ID!) {
+          discountAutomaticDeactivate(id: $id) {
+            automaticDiscountNode { id }
+            userErrors { field message }
+          }
+        }`;
+
+      const statusRes = await admin.graphql(statusMutation, {
+        variables: { id: existing.shopifyDiscountId },
+      });
+      const statusData = await statusRes.json();
+      const statusErrors =
+        statusData?.data?.discountAutomaticActivate?.userErrors ||
+        statusData?.data?.discountAutomaticDeactivate?.userErrors ||
+        [];
+      if (statusErrors.length)
+        console.warn("Status sync error:", statusErrors[0].message);
+    }
+
     await prisma.fixedBundleProduct.deleteMany({ where: { offerId: id } });
 
     const updated = await prisma.fixedBundleOffer.update({

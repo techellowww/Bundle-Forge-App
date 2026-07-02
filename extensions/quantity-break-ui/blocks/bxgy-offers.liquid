@@ -3,10 +3,303 @@
 <script>
 (function () {
   var root = document.getElementById('bxgy-root');
+  console.log('[BXGY] root found?', !!root);
   if (!root) return;
 
   var productId = root.dataset.productId;
+  console.log('[BXGY] productId:', productId);
   if (!productId) return;
+
+  var isProcessing = false;
+  var currentOffer = null;
+  var debounceTimer = null;
+
+  var CART_SECTIONS = [
+    'cart-drawer',
+    'cart-icon-bubble',
+    'main-cart-items',
+    'cart-notification'
+  ];
+
+  function normalizeId(id) {
+    if (!id) return null;
+    var match = String(id).match(/(\d+)$/);
+    return (match && match[1]) || String(id);
+  }
+
+  function getCart() {
+    var cartUrl = window.Shopify && window.Shopify.routes && window.Shopify.routes.root
+      ? window.Shopify.routes.root + 'cart.js'
+      : '/cart.js';
+    return fetch(cartUrl)
+      .then(function (res) { return res.json(); })
+      .catch(function () { return { items: [] }; });
+  }
+
+  function refreshCartSections() {
+    var rootPath = window.Shopify && window.Shopify.routes && window.Shopify.routes.root
+      ? window.Shopify.routes.root : '/';
+    var sectionUrl = rootPath + '?sections=' + CART_SECTIONS.join(',');
+
+    return fetch(sectionUrl)
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        var updated = 0;
+        CART_SECTIONS.forEach(function (id) {
+          if (!data[id]) return;
+          var el = document.querySelector('[data-section-id="' + id + '"]');
+          if (el) { el.innerHTML = data[id]; updated++; }
+        });
+        if (updated === 0) window.location.reload();
+      })
+      .catch(function () { window.location.reload(); });
+  }
+
+  function countQualifyingItems(cart, offer) {
+    if (!offer || !cart.items || !cart.items.length) return 0;
+
+    var applyTo = offer.applyTo || 'allProducts';
+
+    // Gift variants must never count as qualifying items
+    var giftVariantIds = ((offer.productGift && offer.productGift.giftProducts) || [])
+      .map(function (g) { return normalizeId(g.variantId); });
+
+    var selectedProductIds = (offer.products || [])
+      .filter(function (p) { return !p.isExcluded; })
+      .map(function (p) { return normalizeId(p.productId); });
+
+    var excludedProductIds = (offer.products || [])
+      .filter(function (p) { return p.isExcluded; })
+      .map(function (p) { return normalizeId(p.productId); });
+
+    var qty = 0;
+    cart.items.forEach(function (item) {
+      if (giftVariantIds.includes(normalizeId(item.variant_id))) return;
+
+      var pid = normalizeId(item.product_id);
+      var qualifies =
+        applyTo === 'allProducts' ? true :
+        applyTo === 'selectedProducts' ? selectedProductIds.includes(pid) :
+        applyTo === 'excludeProducts' ? !excludedProductIds.includes(pid) : false;
+
+      if (qualifies) qty += item.quantity;
+    });
+    return qty;
+  }
+
+  function autoAddGifts(offer, cart) {
+    // Hard gate — never run concurrently
+    if (isProcessing) return Promise.resolve();
+    if (!offer || offer.giftMode !== 'PRODUCT_GIFT' || !offer.productGift) return Promise.resolve();
+
+    var qualifyingQty = countQualifyingItems(cart, offer);
+    var requiredQty   = offer.requiredQuantity || 1;
+    var giftProducts  = offer.productGift.giftProducts || [];
+    var giftQuantity  = offer.productGift.giftQuantity || 1;
+
+    console.log('[BXGY] qualifying=' + qualifyingQty + ' required=' + requiredQty);
+
+    // Build a map of gift variants currently in the cart
+    var giftsInCart = {};
+    cart.items.forEach(function (item) {
+      var vid = normalizeId(item.variant_id);
+      if (giftProducts.some(function (g) { return normalizeId(g.variantId) === vid; })) {
+        giftsInCart[vid] = (giftsInCart[vid] || 0) + item.quantity;
+      }
+    });
+
+    // ── REMOVE ────────────────────────────────────────────────────────────
+    if (qualifyingQty < requiredQty) {
+      var removeUpdates = {};
+      cart.items.forEach(function (item) {
+        if (giftsInCart[normalizeId(item.variant_id)] !== undefined) {
+          removeUpdates[item.key] = 0;
+        }
+      });
+      if (!Object.keys(removeUpdates).length) return Promise.resolve();
+
+      console.log('[BXGY] Removing gifts.');
+      isProcessing = true;
+      return fetch('/cart/update.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: removeUpdates })
+      })
+        .then(function () {
+          isProcessing = false;
+          return refreshCartSections();
+        })
+        .catch(function (err) {
+          isProcessing = false;
+          console.error('[BXGY] Remove failed:', err);
+        });
+    }
+
+    // ── ADD: only what's missing ───────────────────────────────────────────
+    var itemsToAdd = giftProducts
+      .filter(function (g) {
+        if (!g.variantId) return false;
+        var vid = normalizeId(g.variantId);
+        return (giftsInCart[vid] || 0) < giftQuantity;
+      })
+      .map(function (g) {
+        var vid = normalizeId(g.variantId);
+        return {
+          id: parseInt(vid, 10),
+          quantity: giftQuantity - (giftsInCart[vid] || 0)
+        };
+      });
+
+    if (!itemsToAdd.length) {
+      console.log('[BXGY] Gift already in cart — nothing to do.');
+      return Promise.resolve();
+    }
+
+    console.log('[BXGY] Adding gifts:', JSON.stringify(itemsToAdd));
+    isProcessing = true;
+
+    return fetch('/cart/add.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: itemsToAdd })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.status && data.status !== 200) throw new Error(data.description || 'Add failed');
+        isProcessing = false;
+        console.log('[BXGY] Gift added.');
+        return refreshCartSections();
+        // ← intentionally NOT calling autoAddGifts again here
+      })
+      .catch(function (err) {
+        isProcessing = false;
+        console.error('[BXGY] Add failed:', err);
+      });
+  }
+
+  // ── Debounced handler called by all event sources ─────────────────────────
+  function scheduleCheck() {
+    if (isProcessing) return;   // already doing something, skip
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function () {
+      if (isProcessing) return;
+      getCart().then(function (cart) {
+        autoAddGifts(currentOffer, cart);
+      });
+    }, 500);
+  }
+
+  // ── Event listeners instead of fetch interceptor ──────────────────────────
+  function attachCartListeners() {
+    // 1. Shopify's own cart events (works in Dawn and most modern themes)
+    document.addEventListener('cart:updated', scheduleCheck);
+    document.addEventListener('cart:refresh', scheduleCheck);
+
+    // Dawn / Shopify default theme specific
+    document.addEventListener('Cart:afterUpdateQuantity', scheduleCheck);
+
+    // Ajax Cart (jQuery-based themes)
+    document.addEventListener('cart.requestComplete', scheduleCheck);
+
+    // 2. Watch the add-to-cart form submit button directly
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (form && form.action && form.action.includes('/cart/add')) {
+        // Give Shopify time to process the add before we check
+        setTimeout(scheduleCheck, 800);
+      }
+    }, true);
+
+    // 3. MutationObserver on cart drawer as a reliable fallback
+    //    Fires when the theme updates the drawer HTML after any cart change
+    var cartDrawer = document.querySelector('[data-section-id="cart-drawer"], cart-drawer, #CartDrawer');
+    if (cartDrawer) {
+      var drawerObserver = new MutationObserver(function (mutations) {
+        // Only react to meaningful DOM changes, not our own innerHTML swap
+        var significant = mutations.some(function (m) {
+          return m.addedNodes.length > 0 || m.removedNodes.length > 0;
+        });
+        if (significant) scheduleCheck();
+      });
+      drawerObserver.observe(cartDrawer, { childList: true, subtree: false });
+    }
+
+    // 4. Quantity input changes on the cart page (/cart)
+    document.addEventListener('change', function (e) {
+      var el = e.target;
+      if (
+        el.tagName === 'INPUT' &&
+        (el.name === 'updates[]' || el.getAttribute('data-quantity-input') !== null)
+      ) {
+        setTimeout(scheduleCheck, 800);
+      }
+    });
+  }
+
+  // ── Render widget ─────────────────────────────────────────────────────────
+
+  function fetchAndRender() {
+    fetch('/apps/quantity-break?type=bxgy&productId=' + productId)
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        console.log("mmmmmmmmmmmmmmm", data)
+        if (!data.offers || !data.offers.length) return;
+
+        var offer = data.offers[0];
+        currentOffer = offer;
+        console.log("Current product:", productId);
+        console.log("nnnnnnnnnnnnnnn", offer)
+
+        var isProductGift = !!offer.productGift;
+        var sectionLabel  = isProductGift ? '🎁 Free Gift Offer' : '🚚 Shipping Offer';
+        var badgeText = '', badgeBg = '#dcfce7', badgeColor = '#15803d';
+
+        if (isProductGift) {
+          var pg = offer.productGift;
+          badgeText = pg.discountType === 'free'      ? 'Free Gift'
+                    : pg.discountType === 'percentage' ? pg.discountValue + '% OFF Gift'
+                    : 'Gift at Fixed Price';
+        }
+
+        var requirementText = 'Buy ' + offer.requiredQuantity
+          + ' qualifying item' + (offer.requiredQuantity > 1 ? 's' : '') + ' to unlock';
+
+        var giftProducts = isProductGift && offer.productGift.giftProducts
+          ? offer.productGift.giftProducts : [];
+
+        var gifts = '';
+        giftProducts.forEach(function (g) {
+          var giftLabel = offer.productGift.discountType === 'free'      ? 'FREE'
+                        : offer.productGift.discountType === 'percentage' ? offer.productGift.discountValue + '% OFF'
+                        : 'Fixed price';
+          gifts += '<div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#374151;margin-top:6px;gap:8px;">'
+            + '<span style="display:flex;align-items:center;gap:5px;"><span style="color:#15803d;font-weight:700;">✓</span><span>' + g.title + '</span></span>'
+            + '<span style="font-size:11px;font-weight:700;background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:12px;">' + giftLabel + '</span>'
+            + '</div>';
+        });
+
+        var statusMessage = isProductGift
+          ? '<div style="font-size:12px;color:#6b7280;margin-top:10px;text-align:center;font-style:italic;">Gift will be added automatically when you qualify</div>'
+          : '';
+
+        root.innerHTML = '<div style="margin-bottom:16px;">'
+          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:6px;">' + sectionLabel + '</div>'
+          + '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#fff;">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+          + '<div style="font-size:14px;font-weight:600;color:#111827;">' + (offer.discountTitle || offer.title) + '</div>'
+          + '<div style="background:' + badgeBg + ';color:' + badgeColor + ';font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">' + badgeText + '</div>'
+          + '</div>'
+          + '<div style="font-size:12px;color:#9ca3af;margin-top:5px;">' + requirementText + '</div>'
+          + gifts + statusMessage
+          + '</div></div>';
+
+        root.style.display = 'block';
+
+        // Initial check on page load
+        getCart().then(function (cart) { autoAddGifts(offer, cart); });
+      })
+      .catch(function (err) { console.error('[BXGY]', err); });
+  }
 
   function mountWidget() {
     var form = document.querySelector('form[action*="/cart/add"]');
@@ -14,186 +307,22 @@
 
     var qtyWrap = form.querySelector('quantity-input')
       || form.querySelector('[class*="quantity"]')
-      || (form.querySelector('input[name="quantity"]') && form.querySelector('input[name="quantity"]').parentElement);
+      || (form.querySelector('input[name="quantity"]')
+          && form.querySelector('input[name="quantity"]').parentElement);
 
-    if (qtyWrap) {
-      qtyWrap.after(root);
-    } else {
-      form.prepend(root);
-    }
-
+    qtyWrap ? qtyWrap.after(root) : form.prepend(root);
     fetchAndRender();
   }
 
-function fetchAndRender() {
-  fetch('/apps/quantity-break?type=bxgy&productId=' + productId)
-    .then(function (res) { return res.json(); })
-    .then(function (data) {
-      if (!data.offers || !data.offers.length) return;
-
-      var html = '';
-
-      data.offers.forEach(function (offer) {
-        var isProductGift = !!offer.productGift;
-        var isShipping = !!offer.shippingGift;
-
-        // ── Section header per offer type ──
-        var sectionLabel = isProductGift
-          ? '🎁 Free Gift Offer'
-          : isShipping
-            ? '🚚 Shipping Offer'
-            : 'Bundle Offer';
-
-        // ── Badge text + color ──
-        var badgeText = '';
-        var badgeBg = '#dcfce7';
-        var badgeColor = '#15803d';
-
-        if (isProductGift) {
-          var pg = offer.productGift;
-          if (pg.discountType === 'free') {
-            badgeText = 'Free Gift';
-          } else if (pg.discountType === 'percentage') {
-            badgeText = pg.discountValue + '% OFF Gift';
-          } else if (pg.discountType === 'fixedPrice') {
-            badgeText = 'Gift at Fixed Price';
-          }
-          badgeBg = '#dcfce7';
-          badgeColor = '#15803d';
-        } else if (isShipping) {
-          var sg = offer.shippingGift;
-          if (sg.enableFreeShipping) {
-            badgeText = 'Free Shipping';
-          } else if (sg.discountType === 'percentage') {
-            badgeText = sg.discountValue + '% Shipping OFF';
-          } else if (sg.discountType === 'fixedPrice') {
-            badgeText = sg.discountValue + ' OFF Shipping';
-          }
-          badgeBg = '#dbeafe';
-          badgeColor = '#1d4ed8';
-        }
-
-        // ── Requirement line ──
-        var requirementText = 'Buy ' + offer.requiredQuantity + ' qualifying item'
-          + (offer.requiredQuantity > 1 ? 's' : '') + ' to unlock';
-
-        // ── Gift product list (product gift only) ──
-        var gifts = '';
-        var giftProducts = isProductGift && offer.productGift.giftProducts
-          ? offer.productGift.giftProducts
-          : [];
-
-        giftProducts.forEach(function (g) {
-          var giftLabel = '';
-          if (offer.productGift.discountType === 'free') {
-            giftLabel = 'FREE';
-          } else if (offer.productGift.discountType === 'percentage') {
-            giftLabel = offer.productGift.discountValue + '% OFF';
-          } else if (offer.productGift.discountType === 'fixedPrice') {
-            giftLabel = 'Fixed price';
-          }
-
-          gifts += '<div style="display:flex;align-items:center;justify-content:space-between;'
-            + 'font-size:13px;color:#374151;margin-top:6px;gap:8px;">'
-            + '<span style="display:flex;align-items:center;gap:5px;">'
-            + '<span style="color:#15803d;font-weight:700;">✓</span>'
-            + '<span>' + g.title + '</span>'
-            + '</span>'
-            + '<span style="font-size:11px;font-weight:700;background:#dcfce7;'
-            + 'color:#15803d;padding:2px 7px;border-radius:12px;">' + giftLabel + '</span>'
-            + '</div>';
-        });
-
-        // ── Shipping details (shipping gift only) ──
-        var shippingDetail = '';
-        if (isShipping) {
-          var sg = offer.shippingGift;
-          var detail = sg.enableFreeShipping
-            ? 'Shipping is completely free on this order.'
-            : sg.discountType === 'percentage'
-              ? sg.discountValue + '% off your shipping cost.'
-              : sg.discountValue + ' off your shipping cost.';
-
-          shippingDetail = '<div style="font-size:13px;color:#1d4ed8;margin-top:8px;'
-            + 'background:#eff6ff;border-radius:6px;padding:8px 10px;">'
-            + detail
-            + '</div>';
-        }
-
-        // ── Button label ──
-        var buttonLabel = isProductGift ? 'Add Bundle + Gift' : 'Activate Shipping Deal';
-        var buttonBg = isShipping ? '#1d4ed8' : '#111827';
-
-        // ── Serialise offer data for button ──
-        var offerData = JSON.stringify({
-          giftProducts: giftProducts,
-          giftQuantity: isProductGift && offer.productGift.giftQuantity
-            ? offer.productGift.giftQuantity
-            : 1
-        }).replace(/'/g, "&#39;");
-
-        // ── Full card ──
-        html += '<div style="margin-bottom:16px;">'
-
-          // Section label above card
-          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;'
-          + 'letter-spacing:0.08em;color:#6b7280;margin-bottom:6px;">'
-          + sectionLabel
-          + '</div>'
-
-          // Card
-          + '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#fff;">'
-
-            // Title row + badge
-            + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
-            + '<div style="font-size:14px;font-weight:600;color:#111827;">'
-            + (offer.discountTitle || offer.title)
-            + '</div>'
-            + '<div style="background:' + badgeBg + ';color:' + badgeColor + ';'
-            + 'font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">'
-            + badgeText
-            + '</div>'
-            + '</div>'
-
-            // Requirement line
-            + '<div style="font-size:12px;color:#9ca3af;margin-top:5px;">'
-            + requirementText
-            + '</div>'
-
-            // Gift products or shipping detail
-            + gifts
-            + shippingDetail
-
-            // Button (only shown for product gift; shipping discount is automatic)
-            + (isProductGift
-              ? '<button onclick="bxgyAddBundle(this)" data-offer=\'' + offerData + '\' '
-                + 'style="width:100%;border:none;border-radius:8px;padding:10px;'
-                + 'background:' + buttonBg + ';color:#fff;font-size:14px;font-weight:600;'
-                + 'cursor:pointer;margin-top:10px;">'
-                + buttonLabel
-                + '</button>'
-              : '<div style="font-size:12px;color:#6b7280;margin-top:10px;text-align:center;">'
-                + 'Discount applied automatically at checkout'
-                + '</div>'
-              )
-
-          + '</div>'
-        + '</div>';
-      });
-
-      root.innerHTML = html;
-      root.style.display = 'block';
-    })
-    .catch(function (err) {
-      console.error('[BXGY]', err);
-    });
-}
-
   function boot() {
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', mountWidget);
+      document.addEventListener('DOMContentLoaded', function () {
+        mountWidget();
+        attachCartListeners();
+      });
     } else {
       mountWidget();
+      attachCartListeners();
     }
 
     var observer = new MutationObserver(function () {
@@ -206,53 +335,6 @@ function fetchAndRender() {
   }
 
   boot();
-
-window.bxgyAddBundle = function (btn) {
-  var offer = JSON.parse(btn.dataset.offer);
-  var giftProducts = offer.giftProducts || [];
-  var giftQuantity = offer.giftQuantity || 1;
-
-  if (!giftProducts.length) return;
-
-  btn.disabled = true;
-  btn.textContent = 'Adding...';
-
-  // Use variantId from enriched API response — no extra fetch needed
-  var items = giftProducts
-    .filter(function(g) { return g.variantId; })
-    .map(function(g) {
-      return { id: parseInt(g.variantId), quantity: giftQuantity };
-    });
-
-  if (!items.length) {
-    btn.disabled = false;
-    btn.textContent = 'Add Bundle';
-    return;
-  }
-
-  fetch('/cart/add.js', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items: items })
-  })
-  .then(function(res) { return res.json(); })
-  .then(function() {
-    btn.textContent = 'Added! ✓';
-    document.dispatchEvent(new CustomEvent('cart:refresh'));
-    var cartDrawerTrigger = document.querySelector('[data-cart-open], .cart-toggle, #cart-icon-bubble');
-    if (cartDrawerTrigger) cartDrawerTrigger.click();
-    setTimeout(function () {
-      btn.disabled = false;
-      btn.textContent = 'Add Bundle';
-    }, 2000);
-  })
-  .catch(function (err) {
-    console.error('[BXGY] Add to cart failed:', err);
-    btn.disabled = false;
-    btn.textContent = 'Add Bundle';
-  });
-};
-
 })();
 </script>
 
