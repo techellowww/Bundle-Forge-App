@@ -1,3 +1,16 @@
+import {
+  Card,
+  BlockStack,
+  InlineGrid,
+  InlineStack,
+  Box,
+  Text,
+  TextField,
+  Select,
+  Button,
+  Thumbnail,
+} from "@shopify/polaris";
+
 const SelectGifts = ({
   discountType,
   setDiscountType,
@@ -14,12 +27,14 @@ const SelectGifts = ({
         type: "product",
         multiple: true,
       });
+
       if (result?.selection?.length) {
         setGiftProducts(
           result.selection.map((product) => ({
             id: product.id,
             title: product.title,
             images: product.images || [],
+            featuredImage: product.featuredImage || null,
             vendor: product.vendor,
             productType: product.productType,
           })),
@@ -31,129 +46,133 @@ const SelectGifts = ({
   };
 
   const removeGiftProduct = (productId) => {
-    setGiftProducts((prev) => prev.filter((p) => p.id !== productId));
+    setGiftProducts((prev) =>
+      prev.filter((product) => product.id !== productId),
+    );
   };
 
   return (
-    <s-section>
-      <s-card padding="large">
-        <s-stack direction="block" gap="large">
-          <s-box borderRadius="base">
-            <s-stack direction="block" gap="base">
-              <s-heading>Gift</s-heading>
+    <Card>
+      <BlockStack gap="500">
+        <Text as="h2" variant="headingMd">
+          Gift
+        </Text>
 
-              <s-grid
-                padding="base"
-                background="subdued"
-                border="base"
-                borderRadius="base"
-                gridTemplateColumns="1fr 1fr"
-                gap="small"
-              >
-                <s-select
-                  label="Discount Type"
-                  value={discountType}
-                  onChange={(e) => setDiscountType(e.target.value)}
-                >
-                  <s-option value="free">Free (100% off)</s-option>
-                  <s-option value="percentage">Percentage</s-option>
-                  <s-option value="fixedPrice">Fixed Amount</s-option>
-                </s-select>
-
-                {discountType === "percentage" && (
-                  <s-text-field
-                    label="Discount %"
-                    type="number"
-                    min="0"
-                    max="100"
-                    suffix="%"
-                    placeholder="10"
-                    value={String(giftValue ?? "")}
-                    onChange={(e) => setGiftValue(e.target.value)}
-                  />
-                )}
-
-                {discountType === "fixedPrice" && (
-                  <s-text-field
-                    label="Amount Off"
-                    type="number"
-                    min="0"
-                    placeholder="10.00"
-                    value={String(giftValue ?? "")}
-                    onChange={(e) => setGiftValue(e.target.value)}
-                  />
-                )}
-              </s-grid>
-
-              <s-text-field
-                label="Number of gifts for customer to receive"
-                type="number"
-                min="1"
-                value={String(giftQuantity)}
-                onChange={(e) => setGiftQuantity(e.target.value)}
-                placeholder="1"
+        <Card background="bg-surface-secondary">
+          <BlockStack gap="400">
+            <InlineGrid columns={2} gap="400">
+              <Select
+                label="Discount Type"
+                value={discountType}
+                onChange={setDiscountType}
+                options={[
+                  {
+                    label: "Free (100% off)",
+                    value: "free",
+                  },
+                  {
+                    label: "Percentage",
+                    value: "percentage",
+                  },
+                  {
+                    label: "Fixed Amount",
+                    value: "fixedPrice",
+                  },
+                ]}
               />
 
-              <s-box paddingBlockStart="base">
-                <s-button onClick={openGiftProductPicker}>
-                  Select Gift Products
-                </s-button>
+              {discountType === "percentage" && (
+                <TextField
+                  label="Discount %"
+                  type="number"
+                  suffix="%"
+                  min={0}
+                  max={100}
+                  placeholder="10"
+                  value={String(giftValue ?? "")}
+                  onChange={setGiftValue}
+                  autoComplete="off"
+                />
+              )}
 
-                {giftProducts?.length > 0 && (
-                  <s-box paddingBlockStart="base">
-                    <s-text as="p" variant="bodyMd" tone="subdued">
-                      Selected Gift Products ({giftProducts.length})
-                    </s-text>
-                    <s-stack direction="block" gap="small">
-                      {giftProducts.map((product) => (
-                        <s-card key={product.id}>
-                          <s-grid
-                            gridTemplateColumns="auto 1fr auto"
-                            gap="small"
-                            blockAlignment="center"
-                          >
-                            <img
-                              src={
-                                product.images?.[0]?.originalSrc ||
-                                product.featuredImage?.url ||
-                                "/placeholder.png"
-                              }
-                              width="40"
-                              height="40"
-                              alt={product.title}
-                              style={{
-                                borderRadius: "4px",
-                                objectFit: "cover",
-                              }}
-                            />
-                            <div>
-                              <s-text variant="bodyMd">{product.title}</s-text>
-                              {product.vendor && (
-                                <s-text variant="bodySm" tone="subdued">
-                                  {product.vendor}
-                                </s-text>
-                              )}
-                            </div>
-                            <s-button
-                              tone="critical"
-                              variant="plain"
-                              onClick={() => removeGiftProduct(product.id)}
-                              size="compact"
-                            >
-                              Remove
-                            </s-button>
-                          </s-grid>
-                        </s-card>
-                      ))}
-                    </s-stack>
-                  </s-box>
-                )}
-              </s-box>
-            </s-stack>
-          </s-box>
-        </s-stack>
-      </s-card>
-    </s-section>
+              {discountType === "fixedPrice" && (
+                <TextField
+                  label="Amount Off"
+                  type="number"
+                  min={0}
+                  placeholder="10.00"
+                  value={String(giftValue ?? "")}
+                  onChange={setGiftValue}
+                  autoComplete="off"
+                />
+              )}
+            </InlineGrid>
+
+            <TextField
+              label="Number of gifts for customer to receive"
+              type="number"
+              min={1}
+              value={String(giftQuantity)}
+              onChange={setGiftQuantity}
+              placeholder="1"
+              autoComplete="off"
+            />
+          </BlockStack>
+        </Card>
+
+        <Box>
+          <Button variant="primary" onClick={openGiftProductPicker}>
+            Select Gift Products
+          </Button>
+        </Box>
+
+        {giftProducts?.length > 0 && (
+          <BlockStack gap="300">
+            <Text as="p" variant="bodyMd" tone="subdued">
+              Selected Gift Products ({giftProducts.length})
+            </Text>
+
+            {giftProducts.map((product) => (
+              <Card key={product.id}>
+                <InlineStack align="space-between" blockAlign="center">
+                  <InlineStack gap="300" blockAlign="center">
+                    <Thumbnail
+                      source={
+                        product.featuredImage?.url ||
+                        product.images?.[0]?.originalSrc ||
+                        "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-image_large.png"
+                      }
+                      alt={product.title}
+                      size="small"
+                    />
+
+                    <BlockStack gap="100">
+                      <Text as="span" variant="bodyMd" fontWeight="medium">
+                        {product.title}
+                      </Text>
+
+                      {product.vendor && (
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {product.vendor}
+                        </Text>
+                      )}
+                    </BlockStack>
+                  </InlineStack>
+
+                  <Button
+                    tone="critical"
+                    variant="plain"
+                    onClick={() => removeGiftProduct(product.id)}
+                  >
+                    Remove
+                  </Button>
+                </InlineStack>
+              </Card>
+            ))}
+          </BlockStack>
+        )}
+      </BlockStack>
+    </Card>
   );
 };
 

@@ -1,5 +1,18 @@
 import { useState, useRef, useEffect } from "react";
-import { Tag, InlineStack, BlockStack } from "@shopify/polaris";
+import {
+  Tag,
+  InlineStack,
+  BlockStack,
+  Card,
+  Select,
+  TextField,
+  Checkbox,
+  RadioButton,
+  Button,
+  Text,
+  Box,
+  Thumbnail,
+} from "@shopify/polaris";
 
 const MultiSelectField = ({
   label,
@@ -39,16 +52,9 @@ const MultiSelectField = ({
   return (
     <BlockStack gap="200">
       <div ref={containerRef} style={{ position: "relative" }}>
-        <p
-          style={{
-            fontSize: "14px",
-            fontWeight: 500,
-            marginBottom: "4px",
-            color: "#202223",
-          }}
-        >
+        <Text as="p" variant="bodyMd" fontWeight="medium">
           {label}
-        </p>
+        </Text>
         <div
           style={{
             display: "flex",
@@ -59,6 +65,7 @@ const MultiSelectField = ({
             background: "#fff",
             cursor: "text",
             gap: "8px",
+            marginTop: "4px",
           }}
           onClick={() => {
             if (!loading) setOpen(true);
@@ -174,10 +181,12 @@ const CollectionChipField = ({ selected = [], onAdd, onRemove }) => {
 
   return (
     <BlockStack gap="200">
-      <p style={{ fontSize: "14px", fontWeight: 500, color: "#202223" }}>
+      <Text as="p" variant="bodyMd" fontWeight="medium">
         Collections
-      </p>
-      <s-button onClick={openPicker}>Select Collections</s-button>
+      </Text>
+      <Box>
+        <Button onClick={openPicker}>Select Collections</Button>
+      </Box>
       {selected.length > 0 && (
         <InlineStack gap="100" wrap>
           {selected.map((c) => (
@@ -258,197 +267,196 @@ const OfferMain = ({
     setSelectedProducts((prev) => prev.filter((p) => p.id !== id));
   };
 
+  const applyToOptions = [
+    { label: "Selected Products", value: "selectedProducts" },
+    {
+      label: "Products in selected vendors / types / collections",
+      value: "productsInSelectedVendorTypeCollection",
+    },
+  ];
+
+  const statusOptions = [
+    { label: "Active", value: "active" },
+    { label: "Inactive", value: "inactive" },
+  ];
+
   return (
-    <s-section>
-      <s-card padding="large">
-        <s-stack direction="block" gap="large">
-          <s-heading>Offer Condition</s-heading>
+    <Card padding="500">
+      <BlockStack gap="500">
+        <Text as="h2" variant="headingMd">
+          Offer Condition
+        </Text>
 
-          <s-card
-            padding="base"
-            background="subdued"
-            border="base"
-            borderRadius="base"
-          >
-            <s-stack direction="block" gap="base">
-              {/* Required quantity */}
-              <s-text-field
-                label="Number of products required to qualify"
-                type="number"
-                min="1"
-                value={String(requiredQuantity)}
-                onChange={(e) => setRequiredQuantity(e.target.value)}
-                placeholder="1"
-              />
+        <Box
+          padding="400"
+          background="bg-surface-secondary"
+          borderWidth="025"
+          borderColor="border"
+          borderRadius="200"
+        >
+          <BlockStack gap="400">
+            {/* Required quantity */}
+            <TextField
+              label="Number of products required to qualify"
+              type="number"
+              min={1}
+              value={String(requiredQuantity)}
+              onChange={(value) => setRequiredQuantity(value)}
+              placeholder="1"
+              autoComplete="off"
+            />
 
-              {/* Same as gift */}
-              <s-checkbox
-                label="Gifts will be the same as selected products"
-                checked={sameAsGift}
-                onChange={(e) => setSameAsGift(e.target.checked)}
-              />
+            {/* Same as gift */}
+            <Checkbox
+              label="Gifts will be the same as selected products"
+              checked={sameAsGift}
+              onChange={(checked) => setSameAsGift(checked)}
+            />
 
-              {/* Track by — only shown when sameAsGift is true */}
-              {sameAsGift && (
-                <s-stack direction="inline" gap="large">
-                  <s-checkbox
-                    label="Track by product"
-                    checked={trackBy === "PRODUCT"}
-                    onChange={() => setTrackBy("PRODUCT")}
-                  />
-                  <s-checkbox
-                    label="Track by variant"
-                    checked={trackBy === "VARIANT"}
-                    onChange={() => setTrackBy("VARIANT")}
-                  />
-                </s-stack>
-              )}
+            {/* Track by — only shown when sameAsGift is true */}
+            {sameAsGift && (
+              <InlineStack gap="500">
+                <RadioButton
+                  label="Track by product"
+                  checked={trackBy === "PRODUCT"}
+                  id="trackByProduct"
+                  name="trackBy"
+                  onChange={() => setTrackBy("PRODUCT")}
+                />
+                <RadioButton
+                  label="Track by variant"
+                  checked={trackBy === "VARIANT"}
+                  id="trackByVariant"
+                  name="trackBy"
+                  onChange={() => setTrackBy("VARIANT")}
+                />
+              </InlineStack>
+            )}
 
-              {/* Apply To */}
-              <s-select
-                label="Apply To"
-                value={applyTo}
-                onChange={(e) => setApplyTo(e.target.value)}
-              >
-                <s-option value="selectedProducts">Selected Products</s-option>
-                <s-option value="productsInSelectedVendorTypeCollection">
-                  Products in selected vendors / types / collections
-                </s-option>
-              </s-select>
+            {/* Apply To */}
+            <Select
+              label="Apply To"
+              value={applyTo}
+              options={applyToOptions}
+              onChange={(value) => setApplyTo(value)}
+            />
 
-              {/* Selected Products */}
-              {applyTo === "selectedProducts" && (
-                <BlockStack gap="300">
-                  <s-button onClick={openProductPicker}>
-                    Select Products
-                  </s-button>
+            {/* Selected Products */}
+            {applyTo === "selectedProducts" && (
+              <BlockStack gap="300">
+                <Box>
+                  <Button onClick={openProductPicker}>Select Products</Button>
+                </Box>
 
-                  {selectedProducts.length > 0 && (
-                    <BlockStack gap="200">
-                      <p style={{ fontSize: "13px", color: "#6d7175" }}>
-                        {selectedProducts.length} product(s) selected
-                      </p>
-                      {selectedProducts.map((product) => (
-                        <div
-                          key={product.id}
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "40px 1fr auto",
-                            gap: "12px",
-                            alignItems: "center",
-                            padding: "10px",
-                            border: "1px solid #e1e3e5",
-                            borderRadius: "8px",
-                            background: "#fff",
-                          }}
+                {selectedProducts.length > 0 && (
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {selectedProducts.length} product(s) selected
+                    </Text>
+                    {selectedProducts.map((product) => (
+                      <Card key={product.id} padding="300">
+                        <InlineStack
+                          align="space-between"
+                          blockAlign="center"
+                          wrap={false}
+                          gap="300"
                         >
-                          <img
-                            src={
-                              product.images?.[0]?.originalSrc ||
-                              product.featuredImage?.url ||
-                              "/placeholder.png"
-                            }
-                            width="40"
-                            height="40"
-                            alt={product.title}
-                            style={{ borderRadius: "4px", objectFit: "cover" }}
-                          />
-                          <div>
-                            <p
-                              style={{
-                                fontSize: "14px",
-                                fontWeight: 500,
-                                margin: 0,
-                              }}
-                            >
-                              {product.title}
-                            </p>
-                            {product.vendor && (
-                              <p
-                                style={{
-                                  fontSize: "12px",
-                                  color: "#6d7175",
-                                  margin: 0,
-                                }}
-                              >
-                                {product.vendor}
-                              </p>
-                            )}
-                          </div>
-                          <s-button
+                          <InlineStack
+                            blockAlign="center"
+                            gap="300"
+                            wrap={false}
+                          >
+                            <Thumbnail
+                              source={
+                                product.images?.[0]?.originalSrc ||
+                                product.featuredImage?.url ||
+                                "https://cdn.shopify.com/s/files/1/0757/9955/files/placeholder-images-image_large.png"
+                              }
+                              size="small"
+                              alt={product.title}
+                            />
+                            <BlockStack gap="0">
+                              <Text as="p" variant="bodyMd" fontWeight="medium">
+                                {product.title}
+                              </Text>
+                              {product.vendor && (
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  {product.vendor}
+                                </Text>
+                              )}
+                            </BlockStack>
+                          </InlineStack>
+                          <Button
                             tone="critical"
                             variant="plain"
-                            size="compact"
+                            size="slim"
                             onClick={() => removeProduct(product.id)}
                           >
                             Remove
-                          </s-button>
-                        </div>
-                      ))}
-                    </BlockStack>
-                  )}
-                </BlockStack>
-              )}
+                          </Button>
+                        </InlineStack>
+                      </Card>
+                    ))}
+                  </BlockStack>
+                )}
+              </BlockStack>
+            )}
 
-              {/* Vendor / Type / Collection */}
-              {applyTo === "productsInSelectedVendorTypeCollection" && (
-                <BlockStack gap="400">
-                  <MultiSelectField
-                    label="Vendors"
-                    placeholder="Search and select vendors..."
-                    options={availableVendors}
-                    selected={selectedVendors}
-                    loading={filtersLoading}
-                    onAdd={(v) => setSelectedVendors((prev) => [...prev, v])}
-                    onRemove={(v) =>
-                      setSelectedVendors((prev) => prev.filter((x) => x !== v))
-                    }
-                  />
-                  <MultiSelectField
-                    label="Product Types"
-                    placeholder="Search and select types..."
-                    options={availableTypes}
-                    selected={selectedTypes}
-                    loading={filtersLoading}
-                    onAdd={(t) => setSelectedTypes((prev) => [...prev, t])}
-                    onRemove={(t) =>
-                      setSelectedTypes((prev) => prev.filter((x) => x !== t))
-                    }
-                  />
-                  <CollectionChipField
-                    selected={selectedCollections}
-                    onAdd={(newCollections) =>
-                      setSelectedCollections((prev) => {
-                        const existingIds = new Set(prev.map((c) => c.id));
-                        return [
-                          ...prev,
-                          ...newCollections.filter(
-                            (c) => !existingIds.has(c.id),
-                          ),
-                        ];
-                      })
-                    }
-                    onRemove={(id) =>
-                      setSelectedCollections((prev) =>
-                        prev.filter((x) => x.id !== id),
-                      )
-                    }
-                  />
-                </BlockStack>
-              )}
-            </s-stack>
-          </s-card>
-        </s-stack>
-        <s-select
+            {/* Vendor / Type / Collection */}
+            {applyTo === "productsInSelectedVendorTypeCollection" && (
+              <BlockStack gap="400">
+                <MultiSelectField
+                  label="Vendors"
+                  placeholder="Search and select vendors..."
+                  options={availableVendors}
+                  selected={selectedVendors}
+                  loading={filtersLoading}
+                  onAdd={(v) => setSelectedVendors((prev) => [...prev, v])}
+                  onRemove={(v) =>
+                    setSelectedVendors((prev) => prev.filter((x) => x !== v))
+                  }
+                />
+                <MultiSelectField
+                  label="Product Types"
+                  placeholder="Search and select types..."
+                  options={availableTypes}
+                  selected={selectedTypes}
+                  loading={filtersLoading}
+                  onAdd={(t) => setSelectedTypes((prev) => [...prev, t])}
+                  onRemove={(t) =>
+                    setSelectedTypes((prev) => prev.filter((x) => x !== t))
+                  }
+                />
+                <CollectionChipField
+                  selected={selectedCollections}
+                  onAdd={(newCollections) =>
+                    setSelectedCollections((prev) => {
+                      const existingIds = new Set(prev.map((c) => c.id));
+                      return [
+                        ...prev,
+                        ...newCollections.filter((c) => !existingIds.has(c.id)),
+                      ];
+                    })
+                  }
+                  onRemove={(id) =>
+                    setSelectedCollections((prev) =>
+                      prev.filter((x) => x.id !== id),
+                    )
+                  }
+                />
+              </BlockStack>
+            )}
+          </BlockStack>
+        </Box>
+
+        <Select
           label="Status"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <s-option value="active">Active</s-option>
-          <s-option value="inactive">Inactive</s-option>
-        </s-select>
-      </s-card>
-    </s-section>
+          options={statusOptions}
+          onChange={(value) => setStatus(value)}
+        />
+      </BlockStack>
+    </Card>
   );
 };
 

@@ -1,5 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import {
+  Page,
+  Layout,
+  Card,
+  BlockStack,
+  Text,
+  List,
+  Box,
+  Button,
+} from "@shopify/polaris";
 import OfferInfo from "./OfferInfo";
 import OfferMain from "./OfferMain";
 import GiftSection from "./GiftSection";
@@ -7,8 +17,6 @@ import GiftSection from "./GiftSection";
 const BuyXGetY = ({ offer = null }) => {
   const navigate = useNavigate();
   const isEditing = !!offer;
-  console.log("offer", offer);
-  console.log("isEditing", isEditing);
 
   // Basic info
   const [title, setTitle] = useState(offer?.title ?? "Buy More Save More");
@@ -205,99 +213,108 @@ const BuyXGetY = ({ offer = null }) => {
   };
 
   return (
-    <s-page>
-      <s-grid gridTemplateColumns="2fr 1fr" gap="large">
-        <s-stack direction="block" gap="large">
-          <s-section>
-            <OfferInfo
-              title={title}
-              setTitle={setTitle}
-              discountTitle={discountTitle}
-              setDiscountTitle={setDiscountTitle}
-              startDate={startDate}
-              setStartDate={setStartDate}
-              endDate={endDate}
-              setEndDate={setEndDate}
-            />
-          </s-section>
+    <Page
+      title={isEditing ? "Edit BXGY Offer" : "Create BXGY Offer"}
+      backAction={{ onAction: () => navigate("/app/bxgy-list") }}
+      primaryAction={{
+        content: isEditing ? "Update Offer" : "Save Offer",
+        onAction: saveOffer,
+      }}
+    >
+      <Layout>
+        <Layout.Section>
+          <BlockStack gap="400">
+            <Card>
+              <OfferInfo
+                title={title}
+                setTitle={setTitle}
+                discountTitle={discountTitle}
+                setDiscountTitle={setDiscountTitle}
+                startDate={startDate}
+                setStartDate={setStartDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+              />
+            </Card>
 
-          <s-section>
-            <OfferMain
-              applyTo={applyTo}
-              setApplyTo={setApplyTo}
-              status={status}
-              setStatus={setStatus}
-              requiredQuantity={requiredQuantity}
-              setRequiredQuantity={setRequiredQuantity}
-              trackBy={trackBy}
-              setTrackBy={setTrackBy}
-              sameAsGift={sameAsGift}
-              setSameAsGift={setSameAsGift}
-              selectedProducts={selectedProducts}
-              setSelectedProducts={setSelectedProducts}
-              excludedProducts={excludedProducts}
-              setExcludedProducts={setExcludedProducts}
-              selectedVendors={selectedVendors}
-              setSelectedVendors={setSelectedVendors}
-              selectedTypes={selectedTypes}
-              setSelectedTypes={setSelectedTypes}
-              selectedCollections={selectedCollections}
-              setSelectedCollections={setSelectedCollections}
-            />
-          </s-section>
+            <Card>
+              <OfferMain
+                applyTo={applyTo}
+                setApplyTo={setApplyTo}
+                status={status}
+                setStatus={setStatus}
+                requiredQuantity={requiredQuantity}
+                setRequiredQuantity={setRequiredQuantity}
+                trackBy={trackBy}
+                setTrackBy={setTrackBy}
+                sameAsGift={sameAsGift}
+                setSameAsGift={setSameAsGift}
+                selectedProducts={selectedProducts}
+                setSelectedProducts={setSelectedProducts}
+                excludedProducts={excludedProducts}
+                setExcludedProducts={setExcludedProducts}
+                selectedVendors={selectedVendors}
+                setSelectedVendors={setSelectedVendors}
+                selectedTypes={selectedTypes}
+                setSelectedTypes={setSelectedTypes}
+                selectedCollections={selectedCollections}
+                setSelectedCollections={setSelectedCollections}
+              />
+            </Card>
 
-          <s-section>
-            <GiftSection
-              selectedGiftMode={selectedGiftMode}
-              setSelectedGiftMode={setSelectedGiftMode}
-              giftDiscountType={giftDiscountType}
-              setGiftDiscountType={setGiftDiscountType}
-              giftValue={giftValue}
-              setGiftValue={setGiftValue}
-              giftQuantity={giftQuantity}
-              setGiftQuantity={setGiftQuantity}
-              giftProducts={giftProducts}
-              setGiftProducts={setGiftProducts}
-              shippingDiscountType={shippingDiscountType}
-              setShippingDiscountType={setShippingDiscountType}
-              shippingDiscountValue={shippingDiscountValue}
-              setShippingDiscountValue={setShippingDiscountValue}
-              enableFreeShipping={enableFreeShipping}
-              setEnableFreeShipping={setEnableFreeShipping}
-              freeShippingProductName={freeShippingProductName}
-              setFreeShippingProductName={setFreeShippingProductName}
-            />
-          </s-section>
-        </s-stack>
+            <Card>
+              <GiftSection
+                selectedGiftMode={selectedGiftMode}
+                setSelectedGiftMode={setSelectedGiftMode}
+                giftDiscountType={giftDiscountType}
+                setGiftDiscountType={setGiftDiscountType}
+                giftValue={giftValue}
+                setGiftValue={setGiftValue}
+                giftQuantity={giftQuantity}
+                setGiftQuantity={setGiftQuantity}
+                giftProducts={giftProducts}
+                setGiftProducts={setGiftProducts}
+                shippingDiscountType={shippingDiscountType}
+                setShippingDiscountType={setShippingDiscountType}
+                shippingDiscountValue={shippingDiscountValue}
+                setShippingDiscountValue={setShippingDiscountValue}
+                enableFreeShipping={enableFreeShipping}
+                setEnableFreeShipping={setEnableFreeShipping}
+                freeShippingProductName={freeShippingProductName}
+                setFreeShippingProductName={setFreeShippingProductName}
+              />
+            </Card>
+          </BlockStack>
+        </Layout.Section>
 
-        <s-stack direction="block" gap="large">
-          <s-card>
-            <s-section>
-              <s-heading>Summary</s-heading>
-              <s-unordered-list>
-                <s-list-item>
+        <Layout.Section variant="oneThird">
+          <Card>
+            <BlockStack gap="200">
+              <Text as="h2" variant="headingMd">
+                Summary
+              </Text>
+              <List type="bullet">
+                <List.Item>
                   Applies to: {applyTo.replace(/([A-Z])/g, " $1").trim()}
-                </s-list-item>
-                <s-list-item>
+                </List.Item>
+                <List.Item>
                   {selectedProducts.length} products selected
-                </s-list-item>
-                <s-list-item>{selectedVendors.length} vendors</s-list-item>
-                <s-list-item>
-                  {selectedCollections.length} collections
-                </s-list-item>
-                <s-list-item>{startDate || "No start date"}</s-list-item>
-              </s-unordered-list>
-            </s-section>
-          </s-card>
-        </s-stack>
-      </s-grid>
+                </List.Item>
+                <List.Item>{selectedVendors.length} vendors</List.Item>
+                <List.Item>{selectedCollections.length} collections</List.Item>
+                <List.Item>{startDate || "No start date"}</List.Item>
+              </List>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+      </Layout>
 
-      <s-box paddingBlockStart="400">
-        <s-button variant="primary" onClick={saveOffer}>
+      <Box paddingBlockStart="400">
+        <Button variant="primary" onClick={saveOffer}>
           {isEditing ? "Update Offer" : "Save Offer"}
-        </s-button>
-      </s-box>
-    </s-page>
+        </Button>
+      </Box>
+    </Page>
   );
 };
 

@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef } from "react";
-import { Tag, InlineStack, BlockStack, ChoiceList } from "@shopify/polaris";
+import {
+  Tag,
+  InlineStack,
+  BlockStack,
+  ChoiceList,
+  Card,
+  Text,
+  Box,
+  Button,
+  Thumbnail,
+} from "@shopify/polaris";
 
 const MultiSelectField = ({
   label,
@@ -38,16 +48,9 @@ const MultiSelectField = ({
   return (
     <BlockStack gap="200">
       <div ref={containerRef} style={{ position: "relative" }}>
-        <p
-          style={{
-            fontSize: "14px",
-            fontWeight: 500,
-            marginBottom: "4px",
-            color: "#202223",
-          }}
-        >
+        <Text as="p" variant="bodyMd" fontWeight="medium">
           {label}
-        </p>
+        </Text>
 
         <div
           style={{
@@ -59,6 +62,7 @@ const MultiSelectField = ({
             background: "#fff",
             cursor: "text",
             gap: "8px",
+            marginTop: "4px",
           }}
           onClick={() => {
             if (!loading) setOpen(true);
@@ -184,10 +188,12 @@ const CollectionChipField = ({ selected, onAdd, onRemove }) => {
 
   return (
     <BlockStack gap="200">
-      <p style={{ fontSize: "14px", fontWeight: 500, color: "#202223" }}>
+      <Text as="p" variant="bodyMd" fontWeight="medium">
         Collections
-      </p>
-      <s-button onClick={openPicker}>Select Collections</s-button>
+      </Text>
+      <Box>
+        <Button onClick={openPicker}>Select Collections</Button>
+      </Box>
       {selected.length > 0 && (
         <InlineStack gap="100" wrap>
           {selected.map((c) => (
@@ -275,104 +281,110 @@ const UpsellTrigger = ({
     applyTo === "excludeProducts" ? excludedProducts : selectedProducts;
 
   return (
-    <s-section>
-      <s-card padding="large">
-        <s-stack gap="large">
-          <s-heading>Offers</s-heading>
+    <Card padding="500">
+      <BlockStack gap="500">
+        <Text as="h2" variant="headingMd">
+          Offers
+        </Text>
 
-          {/* ChoiceList replaces s-select */}
-          <ChoiceList
-            title="Apply To"
-            choices={APPLY_TO_CHOICES}
-            selected={[applyTo]}
-            onChange={(value) => setApplyTo(value[0])}
-          />
+        <ChoiceList
+          title="Apply To"
+          choices={APPLY_TO_CHOICES}
+          selected={[applyTo]}
+          onChange={(value) => setApplyTo(value[0])}
+        />
 
-          {isVendorTypeCollection && (
-            <BlockStack gap="400">
-              <MultiSelectField
-                label="Types"
-                placeholder="Search and select types..."
-                options={availableTypes}
-                selected={selectedTypes}
-                loading={filtersLoading}
-                onAdd={(t) => setSelectedTypes((prev) => [...prev, t])}
-                onRemove={(t) =>
-                  setSelectedTypes((prev) => prev.filter((x) => x !== t))
-                }
-              />
+        {isVendorTypeCollection && (
+          <BlockStack gap="400">
+            <MultiSelectField
+              label="Types"
+              placeholder="Search and select types..."
+              options={availableTypes}
+              selected={selectedTypes}
+              loading={filtersLoading}
+              onAdd={(t) => setSelectedTypes((prev) => [...prev, t])}
+              onRemove={(t) =>
+                setSelectedTypes((prev) => prev.filter((x) => x !== t))
+              }
+            />
 
-              <MultiSelectField
-                label="Vendors"
-                placeholder="Search and select vendors..."
-                options={availableVendors}
-                selected={selectedVendors}
-                loading={filtersLoading}
-                onAdd={(v) => setSelectedVendors((prev) => [...prev, v])}
-                onRemove={(v) =>
-                  setSelectedVendors((prev) => prev.filter((x) => x !== v))
-                }
-              />
+            <MultiSelectField
+              label="Vendors"
+              placeholder="Search and select vendors..."
+              options={availableVendors}
+              selected={selectedVendors}
+              loading={filtersLoading}
+              onAdd={(v) => setSelectedVendors((prev) => [...prev, v])}
+              onRemove={(v) =>
+                setSelectedVendors((prev) => prev.filter((x) => x !== v))
+              }
+            />
 
-              <CollectionChipField
-                selected={selectedCollections}
-                onAdd={(c) =>
-                  setSelectedCollections((prev) =>
-                    prev.find((x) => x.id === c.id) ? prev : [...prev, c],
-                  )
-                }
-                onRemove={(id) =>
-                  setSelectedCollections((prev) =>
-                    prev.filter((x) => x.id !== id),
-                  )
-                }
-              />
-            </BlockStack>
-          )}
+            <CollectionChipField
+              selected={selectedCollections}
+              onAdd={(c) =>
+                setSelectedCollections((prev) =>
+                  prev.find((x) => x.id === c.id) ? prev : [...prev, c],
+                )
+              }
+              onRemove={(id) =>
+                setSelectedCollections((prev) =>
+                  prev.filter((x) => x.id !== id),
+                )
+              }
+            />
+          </BlockStack>
+        )}
 
-          {(applyTo === "excludeProducts" ||
-            applyTo === "selectedProducts") && (
-            <s-box paddingBlockStart="base">
-              <s-button onClick={openProductPicker}>
-                {applyTo === "excludeProducts"
-                  ? "Select Products to Exclude"
-                  : "Select Products"}
-              </s-button>
+        {(applyTo === "excludeProducts" || applyTo === "selectedProducts") && (
+          <Box paddingBlockStart="400">
+            <Button onClick={openProductPicker}>
+              {applyTo === "excludeProducts"
+                ? "Select Products to Exclude"
+                : "Select Products"}
+            </Button>
 
-              {displayProducts?.length > 0 && (
-                <s-box paddingBlockStart="base">
-                  <s-stack direction="block" gap="small">
-                    {displayProducts.map((product) => (
-                      <s-card key={product.id}>
-                        <s-grid
-                          gridTemplateColumns="auto 1fr auto"
-                          gap="small"
-                          blockAlignment="center"
-                        >
-                          <img
-                            src={product.images?.[0]?.originalSrc}
-                            width="40"
-                            height="40"
+            {displayProducts?.length > 0 && (
+              <Box paddingBlockStart="400">
+                <BlockStack gap="200">
+                  {displayProducts.map((product) => (
+                    <Card key={product.id} padding="300">
+                      <InlineStack
+                        align="space-between"
+                        blockAlign="center"
+                        wrap={false}
+                        gap="300"
+                      >
+                        <InlineStack blockAlign="center" gap="300" wrap={false}>
+                          <Thumbnail
+                            source={
+                              product.images?.[0]?.originalSrc ||
+                              "https://cdn.shopify.com/s/files/1/0757/9955/files/placeholder-images-image_large.png"
+                            }
+                            size="small"
+                            alt={product.title}
                           />
-                          <span>{product.title}</span>
-                          <s-button
-                            tone="critical"
-                            variant="plain"
-                            onClick={() => removeProduct(product.id)}
-                          >
-                            Remove
-                          </s-button>
-                        </s-grid>
-                      </s-card>
-                    ))}
-                  </s-stack>
-                </s-box>
-              )}
-            </s-box>
-          )}
-        </s-stack>
-      </s-card>
-    </s-section>
+                          <Text as="span" variant="bodyMd">
+                            {product.title}
+                          </Text>
+                        </InlineStack>
+                        <Button
+                          tone="critical"
+                          variant="plain"
+                          onClick={() => removeProduct(product.id)}
+                        >
+                          Remove
+                        </Button>
+                      </InlineStack>
+                    </Card>
+                  ))}
+                </BlockStack>
+              </Box>
+            )}
+          </Box>
+        )}
+      </BlockStack>
+    </Card>
   );
 };
 

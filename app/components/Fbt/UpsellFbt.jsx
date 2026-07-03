@@ -4,6 +4,18 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import {
+  Page,
+  Layout,
+  Card,
+  BlockStack,
+  InlineStack,
+  Text,
+  Select,
+  Button,
+  Badge,
+  Box,
+} from "@shopify/polaris";
 import UpsellInfo from "./UpsellInfo";
 import UpsellTrigger from "./UpsellTrigger";
 import Method from "./Method";
@@ -23,60 +35,28 @@ const APPLY_TO_LABEL = {
 
 function SummaryRow({ label, value }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        fontSize: "13px",
-        borderBottom: "1px solid #f1f2f3",
-        paddingBottom: "6px",
-      }}
-    >
-      <span style={{ color: "#6d7175" }}>{label}</span>
-      <span
-        style={{
-          color: "#202223",
-          fontWeight: 500,
-          maxWidth: "55%",
-          textAlign: "right",
-        }}
-      >
-        {value}
-      </span>
-    </div>
+    <InlineStack align="space-between" blockAlign="start" wrap={false}>
+      <Text as="span" variant="bodySm" tone="subdued">
+        {label}
+      </Text>
+      <Box maxWidth="55%">
+        <Text as="span" variant="bodySm" fontWeight="medium" alignment="end">
+          {value}
+        </Text>
+      </Box>
+    </InlineStack>
   );
 }
 
 function StatusBadge({ status }) {
   const map = {
-    active: ["#d4edda", "#00a651"],
-    inactive: ["#fff3cd", "#f5a623"],
+    active: "success",
+    inactive: "warning",
   };
-  const [bg, color] = map[status] ?? map.DRAFT;
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        background: bg,
-        color,
-        borderRadius: 20,
-        padding: "3px 12px",
-        fontSize: 13,
-        fontWeight: 600,
-      }}
-    >
-      <span
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: "50%",
-          background: color,
-        }}
-      />
-      {status}
-    </span>
+    <Badge tone={map[status] ?? "default"}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </Badge>
   );
 }
 
@@ -102,10 +82,12 @@ function OfferSummary({
           : "None";
 
   return (
-    <s-card padding="large">
-      <s-stack direction="block" gap="base">
-        <s-heading>Summary</s-heading>
-        <s-stack direction="block" gap="small">
+    <Card padding="500">
+      <BlockStack gap="400">
+        <Text as="h2" variant="headingMd">
+          Summary
+        </Text>
+        <BlockStack gap="200">
           <SummaryRow label="Title" value={title || "—"} />
           <SummaryRow
             label="Apply to"
@@ -130,12 +112,12 @@ function OfferSummary({
           <SummaryRow label="Discount" value={discountLabel} />
           <SummaryRow label="Starts" value={startDate || "Immediately"} />
           <SummaryRow label="Ends" value={endDate || "No end date"} />
-        </s-stack>
-        <div style={{ marginTop: "8px" }}>
+        </BlockStack>
+        <Box paddingBlockStart="200">
           <StatusBadge status={status} />
-        </div>
-      </s-stack>
-    </s-card>
+        </Box>
+      </BlockStack>
+    </Card>
   );
 }
 
@@ -252,93 +234,116 @@ export default function UpsellFbt({ offer }) {
     }
   };
 
+  const statusOptions = [
+    { label: "Active", value: "active" },
+    { label: "Inactive", value: "inactive" },
+  ];
+
   return (
-    <s-page>
-      <s-grid gridTemplateColumns="2fr 1fr" gap="large">
-        <s-stack direction="block" gap="large">
-          <UpsellInfo
-            title={title}
-            setTitle={setTitle}
-            discountTitle={discountTitle}
-            setDiscountTitle={setDiscountTitle}
-            discountDescription={discountDescription}
-            setDiscountDescription={setDiscountDescription}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-          />
-          <UpsellTrigger
-            applyTo={applyTo}
-            setApplyTo={setApplyTo}
-            selectedProducts={selectedProducts}
-            setSelectedProducts={setSelectedProducts}
-            excludedProducts={excludedProducts}
-            setExcludedProducts={setExcludedProducts}
-            selectedVendors={selectedVendors}
-            setSelectedVendors={setSelectedVendors}
-            selectedTypes={selectedTypes}
-            setSelectedTypes={setSelectedTypes}
-            selectedCollections={selectedCollections}
-            setSelectedCollections={setSelectedCollections}
-          />
-          <Method
-            selectedGiftMode={selectedGiftMode}
-            setSelectedGiftMode={setSelectedGiftMode}
-            bundledProducts={bundledProducts}
-            setBundledProducts={setBundledProducts}
-            randomCount={randomCount}
-            setRandomCount={setRandomCount}
-            randomSourceType={randomSourceType}
-            setRandomSourceType={setRandomSourceType}
-            randomSourceValue={randomSourceValue}
-            setRandomSourceValue={setRandomSourceValue}
-          />
-          <Discount
-            discountType={discountType}
-            setDiscountType={setDiscountType}
-            discountValue={discountValue}
-            setDiscountValue={setDiscountValue}
-          />
-        </s-stack>
+    <Page
+      title={isEditing ? "Edit FBT Offer" : "Create FBT Offer"}
+      backAction={{ onAction: () => navigate("/app/fbt-list") }}
+      primaryAction={{
+        content: saving ? "Saving…" : isEditing ? "Update Offer" : "Save Offer",
+        onAction: saveOffer,
+        loading: saving,
+      }}
+      secondaryActions={[
+        {
+          content: "Cancel",
+          onAction: () => navigate("/app/fbt-list"),
+        },
+      ]}
+    >
+      <Layout>
+        <Layout.Section>
+          <BlockStack gap="400">
+            <UpsellInfo
+              title={title}
+              setTitle={setTitle}
+              discountTitle={discountTitle}
+              setDiscountTitle={setDiscountTitle}
+              discountDescription={discountDescription}
+              setDiscountDescription={setDiscountDescription}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+            />
+            <UpsellTrigger
+              applyTo={applyTo}
+              setApplyTo={setApplyTo}
+              selectedProducts={selectedProducts}
+              setSelectedProducts={setSelectedProducts}
+              excludedProducts={excludedProducts}
+              setExcludedProducts={setExcludedProducts}
+              selectedVendors={selectedVendors}
+              setSelectedVendors={setSelectedVendors}
+              selectedTypes={selectedTypes}
+              setSelectedTypes={setSelectedTypes}
+              selectedCollections={selectedCollections}
+              setSelectedCollections={setSelectedCollections}
+            />
+            <Method
+              selectedGiftMode={selectedGiftMode}
+              setSelectedGiftMode={setSelectedGiftMode}
+              bundledProducts={bundledProducts}
+              setBundledProducts={setBundledProducts}
+              randomCount={randomCount}
+              setRandomCount={setRandomCount}
+              randomSourceType={randomSourceType}
+              setRandomSourceType={setRandomSourceType}
+              randomSourceValue={randomSourceValue}
+              setRandomSourceValue={setRandomSourceValue}
+            />
+            <Discount
+              discountType={discountType}
+              setDiscountType={setDiscountType}
+              discountValue={discountValue}
+              setDiscountValue={setDiscountValue}
+            />
+          </BlockStack>
+        </Layout.Section>
 
-        <s-stack direction="block" gap="large">
-          <OfferSummary
-            title={title}
-            applyTo={applyTo}
-            selectedProducts={selectedProducts}
-            bundledProducts={bundledProducts}
-            selectedGiftMode={selectedGiftMode}
-            discountType={discountType}
-            discountValue={discountValue}
-            startDate={startDate}
-            endDate={endDate}
-            status={status}
-          />
-          <s-card padding="large">
-            <s-stack direction="block" gap="base">
-              <s-heading>Offer status</s-heading>
-              <s-select
-                label="Status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <s-option value="active">Active</s-option>
-                <s-option value="inactive">Inactive</s-option>
-              </s-select>
-            </s-stack>
-          </s-card>
-        </s-stack>
-      </s-grid>
+        <Layout.Section variant="oneThird">
+          <BlockStack gap="400">
+            <OfferSummary
+              title={title}
+              applyTo={applyTo}
+              selectedProducts={selectedProducts}
+              bundledProducts={bundledProducts}
+              selectedGiftMode={selectedGiftMode}
+              discountType={discountType}
+              discountValue={discountValue}
+              startDate={startDate}
+              endDate={endDate}
+              status={status}
+            />
+            <Card padding="500">
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  Offer status
+                </Text>
+                <Select
+                  label="Status"
+                  value={status}
+                  options={statusOptions}
+                  onChange={(value) => setStatus(value)}
+                />
+              </BlockStack>
+            </Card>
+          </BlockStack>
+        </Layout.Section>
+      </Layout>
 
-      <s-box paddingBlockStart="400">
-        <s-stack direction="inline" gap="small">
-          <s-button variant="primary" onClick={saveOffer} disabled={saving}>
+      <Box paddingBlockStart="400">
+        <InlineStack gap="200">
+          <Button variant="primary" onClick={saveOffer} loading={saving}>
             {saving ? "Saving…" : isEditing ? "Update Offer" : "Save Offer"}
-          </s-button>
-          <s-button onClick={() => navigate("/app/fbt-list")}>Cancel</s-button>
-        </s-stack>
-      </s-box>
-    </s-page>
+          </Button>
+          <Button onClick={() => navigate("/app/fbt-list")}>Cancel</Button>
+        </InlineStack>
+      </Box>
+    </Page>
   );
 }

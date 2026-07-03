@@ -6,6 +6,7 @@ import {
   BlockStack,
   InlineStack,
   Box,
+  Icon,
 } from "@shopify/polaris";
 
 import {
@@ -41,34 +42,31 @@ export default function CreateOfferModal({ open, onClose }) {
   ];
 
   return (
-    <Modal open={open} onClose={onClose} title="Choose offer type" large>
+    <Modal open={open} onClose={onClose} title="Choose offer type" size="large">
       <Modal.Section>
-        <Box paddingBlockEnd="400">
-          <Text variant="headingMd" alignment="center" as="h2">
+        <BlockStack gap="500">
+          <Text alignment="center" variant="headingLg" as="h2">
             Choose an offer type to begin
           </Text>
-        </Box>
 
-        <BlockStack gap="400">
           {offers.map((offer) => (
-            <Card key={offer.title} roundedAbove="sm">
+            <Card key={offer.title}>
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="400" blockAlign="center">
                   <Box
                     background="bg-surface-secondary"
-                    padding="500"
+                    padding="400"
                     borderRadius="300"
-                    minWidth="70px"
                   >
-                    <offer.icon width={30} height={30} />
+                    <Icon source={offer.icon} />
                   </Box>
 
                   <BlockStack gap="100">
-                    <Text variant="headingMd" as="h3">
+                    <Text as="h3" variant="headingMd">
                       {offer.title}
                     </Text>
 
-                    <Text variant="bodyMd" tone="subdued" as="p">
+                    <Text as="p" tone="subdued">
                       {offer.description}
                     </Text>
                   </BlockStack>

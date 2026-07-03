@@ -5,71 +5,80 @@ const UpsellManualMethod = ({ bundledProducts, setBundledProducts }) => {
         type: "product",
         multiple: true,
       });
+
       if (result?.selection?.length) {
-        const newProducts = result.selection.map((p) => ({
-          id: p.id,
-          title: p.title,
-          images: p.images || [],
-          vendor: p.vendor,
+        const newProducts = result.selection.map((product) => ({
+          id: product.id,
+          title: product.title,
+          images: product.images || [],
+          vendor: product.vendor,
         }));
-        // Merge — avoid duplicates
+
         setBundledProducts((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
+
           return [
             ...prev,
-            ...newProducts.filter((p) => !existingIds.has(p.id)),
+            ...newProducts.filter((product) => !existingIds.has(product.id)),
           ];
         });
       }
-    } catch (err) {
-      console.error("Product picker error:", err);
+    } catch (error) {
+      console.error("Product picker error:", error);
     }
   };
 
-  const removeProduct = (id) =>
-    setBundledProducts((prev) => prev.filter((p) => p.id !== id));
+  const removeProduct = (id) => {
+    setBundledProducts((prev) => prev.filter((product) => product.id !== id));
+  };
 
   return (
-    <s-stack direction="block" gap="base">
-      <s-button onClick={openProductPicker}>Select bundled products</s-button>
+    <BlockStack gap="400">
+      <Button variant="primary" onClick={openProductPicker}>
+        Select Bundled Products
+      </Button>
 
       {bundledProducts?.length > 0 && (
-        <s-stack direction="block" gap="small">
+        <BlockStack gap="300">
           {bundledProducts.map((product) => (
-            <s-card key={product.id}>
-              <s-grid
-                gridTemplateColumns="auto 1fr auto"
-                gap="small"
-                blockAlignment="center"
-              >
-                <img
-                  src={product.images?.[0]?.originalSrc || "/placeholder.png"}
-                  width="40"
-                  height="40"
-                  alt={product.title}
-                  style={{ borderRadius: "4px", objectFit: "cover" }}
-                />
-                <div>
-                  <s-text variant="bodyMd">{product.title}</s-text>
-                  {product.vendor && (
-                    <s-text variant="bodySm" tone="subdued">
-                      {product.vendor}
-                    </s-text>
-                  )}
-                </div>
-                <s-button
+            <Card key={product.id}>
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="300" blockAlign="center">
+                  <Thumbnail
+                    source={
+                      product.images?.[0]?.originalSrc ||
+                      "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-image_large.png"
+                    }
+                    alt={product.title}
+                    size="small"
+                  />
+
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodyMd" fontWeight="medium">
+                      {product.title}
+                    </Text>
+
+                    {product.vendor && (
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        {product.vendor}
+                      </Text>
+                    )}
+                  </BlockStack>
+                </InlineStack>
+
+                <Button
                   tone="critical"
                   variant="plain"
                   onClick={() => removeProduct(product.id)}
                 >
                   Remove
-                </s-button>
-              </s-grid>
-            </s-card>
+                </Button>
+              </InlineStack>
+            </Card>
           ))}
-        </s-stack>
+        </BlockStack>
       )}
-    </s-stack>
+    </BlockStack>
   );
 };
 
