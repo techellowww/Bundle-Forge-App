@@ -41,18 +41,71 @@
       ? window.Shopify.routes.root : '/';
     var sectionUrl = rootPath + '?sections=' + CART_SECTIONS.join(',');
 
-    return fetch(sectionUrl)
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
+    return Promise.all([
+      fetch(sectionUrl).then(function (res) { return res.json(); }),
+      fetch(rootPath + 'cart.js').then(function (res) { return res.json(); })
+    ])
+      .then(function (results) {
+        var data = results[0];
+        var cartData = results[1];
+        var isEmpty = cartData.item_count === 0;
+
+        // Forcefully toggle empty state classes for Dawn and similar themes
+        var cartDrawerEls = document.querySelectorAll('cart-drawer, .drawer__inner, cart-items, cart-drawer-items');
+        cartDrawerEls.forEach(function(el) {
+          if (isEmpty) {
+            el.classList.add('is-empty');
+          } else {
+            el.classList.remove('is-empty');
+          }
+        });
+
+        // 1. Dawn Theme Native Support
+        var cartDrawer = document.querySelector('cart-drawer');
+        if (cartDrawer && typeof cartDrawer.renderContents === 'function') {
+          // Pass the actual item_count to Dawn so it can toggle the 'is-empty' class correctly
+          cartDrawer.renderContents({ sections: data, item_count: cartData.item_count });
+          return;
+        }
+
+        // 2. Generic Theme Fallback
         var updated = 0;
         CART_SECTIONS.forEach(function (id) {
           if (!data[id]) return;
-          var el = document.querySelector('[data-section-id="' + id + '"]');
-          if (el) { el.innerHTML = data[id]; updated++; }
+          
+          var el = document.getElementById('shopify-section-' + id) 
+                || document.querySelector('#' + id)
+                || document.querySelector('.' + id)
+                || document.querySelector('[data-section-id="' + id + '"]');
+                
+          if (el) {
+            var temp = document.createElement('div');
+            temp.innerHTML = data[id];
+            
+            // Only update inner elements to avoid overwriting outer Custom Elements
+            var sectionNode = temp.querySelector('#shopify-section-' + id) || temp.firstElementChild;
+            if (sectionNode && sectionNode.innerHTML) {
+              el.innerHTML = sectionNode.innerHTML;
+            } else {
+              el.innerHTML = data[id];
+            }
+            updated++;
+          }
         });
-        if (updated === 0) window.location.reload();
+
+        document.documentElement.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true }));
+        document.documentElement.dispatchEvent(new CustomEvent('cart:change', { bubbles: true }));
+        document.documentElement.dispatchEvent(new CustomEvent('cart:refresh', { bubbles: true }));
+
+        if (updated === 0) {
+          console.warn('[BXGY] Could not find cart sections to update via DOM. Falling back to reload.');
+          window.location.reload();
+        }
       })
-      .catch(function () { window.location.reload(); });
+      .catch(function (err) {
+        console.error('[BXGY] Error refreshing sections', err);
+        window.location.reload();
+      });
   }
 
   function countQualifyingItems(cart, offer) {
@@ -189,42 +242,49 @@
     }, 500);
   }
 
-  // ── Event listeners instead of fetch interceptor ──────────────────────────
+  // ── Event listeners and interceptors ──────────────────────────
   function attachCartListeners() {
     // 1. Shopify's own cart events (works in Dawn and most modern themes)
     document.addEventListener('cart:updated', scheduleCheck);
     document.addEventListener('cart:refresh', scheduleCheck);
-
-    // Dawn / Shopify default theme specific
     document.addEventListener('Cart:afterUpdateQuantity', scheduleCheck);
-
-    // Ajax Cart (jQuery-based themes)
     document.addEventListener('cart.requestComplete', scheduleCheck);
 
-    // 2. Watch the add-to-cart form submit button directly
+    // 2. Global fetch interceptor (catches all AJAX cart updates)
+    var originalFetch = window.fetch;
+    window.fetch = function () {
+      var url = arguments[0];
+      var p = originalFetch.apply(this, arguments);
+      if (typeof url === 'string' && url.indexOf('/cart/') !== -1 && !isProcessing) {
+        // Wait for the theme's fetch to finish, then schedule our check
+        p.then(function(res) {
+          if (res.ok) setTimeout(scheduleCheck, 400);
+          return res;
+        }).catch(function() {});
+      }
+      return p;
+    };
+
+    // 3. XHR interceptor (for older themes)
+    var originalXhrOpen = window.XMLHttpRequest.prototype.open;
+    window.XMLHttpRequest.prototype.open = function(method, url) {
+      if (typeof url === 'string' && url.indexOf('/cart/') !== -1 && !isProcessing) {
+        this.addEventListener('load', function() {
+          setTimeout(scheduleCheck, 400);
+        });
+      }
+      return originalXhrOpen.apply(this, arguments);
+    };
+
+    // 4. Watch the add-to-cart form submit button directly as fallback
     document.addEventListener('submit', function (e) {
       var form = e.target;
-      if (form && form.action && form.action.includes('/cart/add')) {
-        // Give Shopify time to process the add before we check
+      if (form && form.action && form.action.indexOf('/cart/add') !== -1) {
         setTimeout(scheduleCheck, 800);
       }
     }, true);
 
-    // 3. MutationObserver on cart drawer as a reliable fallback
-    //    Fires when the theme updates the drawer HTML after any cart change
-    var cartDrawer = document.querySelector('[data-section-id="cart-drawer"], cart-drawer, #CartDrawer');
-    if (cartDrawer) {
-      var drawerObserver = new MutationObserver(function (mutations) {
-        // Only react to meaningful DOM changes, not our own innerHTML swap
-        var significant = mutations.some(function (m) {
-          return m.addedNodes.length > 0 || m.removedNodes.length > 0;
-        });
-        if (significant) scheduleCheck();
-      });
-      drawerObserver.observe(cartDrawer, { childList: true, subtree: false });
-    }
-
-    // 4. Quantity input changes on the cart page (/cart)
+    // 5. Quantity input changes on the cart page (/cart)
     document.addEventListener('change', function (e) {
       var el = e.target;
       if (
@@ -242,63 +302,111 @@
     fetch('/apps/quantity-break?type=bxgy&productId=' + productId)
       .then(function (res) { return res.json(); })
       .then(function (data) {
-        console.log("mmmmmmmmmmmmmmm", data)
         if (!data.offers || !data.offers.length) return;
 
-        var offer = data.offers[0];
-        currentOffer = offer;
-        console.log("Current product:", productId);
-        console.log("nnnnnnnnnnnnnnn", offer)
+        // Keep the first offer as primary for auto-add logic for now
+        currentOffer = data.offers[0];
 
-        var isProductGift = !!offer.productGift;
-        var sectionLabel  = isProductGift ? '🎁 Free Gift Offer' : '🚚 Shipping Offer';
-        var badgeText = '', badgeBg = '#dcfce7', badgeColor = '#15803d';
+        root.innerHTML = ''; // Clear securely
 
-        if (isProductGift) {
-          var pg = offer.productGift;
-          badgeText = pg.discountType === 'free'      ? 'Free Gift'
-                    : pg.discountType === 'percentage' ? pg.discountValue + '% OFF Gift'
-                    : 'Gift at Fixed Price';
-        }
+        data.offers.forEach(function (offer) {
+          var isProductGift = !!offer.productGift;
+          var sectionLabel  = isProductGift ? '🎁 Free Gift Offer' : '🚚 Shipping Offer';
+          var badgeText = '', badgeBg = '#dcfce7', badgeColor = '#15803d';
 
-        var requirementText = 'Buy ' + offer.requiredQuantity
-          + ' qualifying item' + (offer.requiredQuantity > 1 ? 's' : '') + ' to unlock';
+          if (isProductGift) {
+            var pg = offer.productGift;
+            badgeText = pg.discountType === 'free'      ? 'Free Gift'
+                      : pg.discountType === 'percentage' ? pg.discountValue + '% OFF Gift'
+                      : 'Gift at Fixed Price';
+          }
 
-        var giftProducts = isProductGift && offer.productGift.giftProducts
-          ? offer.productGift.giftProducts : [];
+          var requirementText = 'Buy ' + offer.requiredQuantity
+            + ' qualifying item' + (offer.requiredQuantity > 1 ? 's' : '') + ' to unlock';
 
-        var gifts = '';
-        giftProducts.forEach(function (g) {
-          var giftLabel = offer.productGift.discountType === 'free'      ? 'FREE'
-                        : offer.productGift.discountType === 'percentage' ? offer.productGift.discountValue + '% OFF'
-                        : 'Fixed price';
-          gifts += '<div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#374151;margin-top:6px;gap:8px;">'
-            + '<span style="display:flex;align-items:center;gap:5px;"><span style="color:#15803d;font-weight:700;">✓</span><span>' + g.title + '</span></span>'
-            + '<span style="font-size:11px;font-weight:700;background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:12px;">' + giftLabel + '</span>'
-            + '</div>';
+          var giftProducts = isProductGift && offer.productGift.giftProducts
+            ? offer.productGift.giftProducts : [];
+
+          // Create wrapper
+          var wrapper = document.createElement('div');
+          wrapper.style.marginBottom = '16px';
+
+          var labelEl = document.createElement('div');
+          labelEl.style.cssText = 'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:6px;';
+          labelEl.textContent = sectionLabel;
+          wrapper.appendChild(labelEl);
+
+          var card = document.createElement('div');
+          card.style.cssText = 'border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#fff;';
+
+          var header = document.createElement('div');
+          header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+          var titleEl = document.createElement('div');
+          titleEl.style.cssText = 'font-size:14px;font-weight:600;color:#111827;';
+          titleEl.textContent = offer.discountTitle || offer.title;
+
+          var badgeEl = document.createElement('div');
+          badgeEl.style.cssText = 'background:' + badgeBg + ';color:' + badgeColor + ';font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;';
+          badgeEl.textContent = badgeText;
+
+          header.appendChild(titleEl);
+          header.appendChild(badgeEl);
+          card.appendChild(header);
+
+          var reqEl = document.createElement('div');
+          reqEl.style.cssText = 'font-size:12px;color:#9ca3af;margin-top:5px;';
+          reqEl.textContent = requirementText;
+          card.appendChild(reqEl);
+
+          giftProducts.forEach(function (g) {
+            var giftLabel = offer.productGift.discountType === 'free'      ? 'FREE'
+                          : offer.productGift.discountType === 'percentage' ? offer.productGift.discountValue + '% OFF'
+                          : 'Fixed price';
+            
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#374151;margin-top:6px;gap:8px;';
+
+            var left = document.createElement('span');
+            left.style.cssText = 'display:flex;align-items:center;gap:5px;';
+            var check = document.createElement('span');
+            check.style.cssText = 'color:#15803d;font-weight:700;';
+            check.textContent = '✓';
+            var gTitle = document.createElement('span');
+            gTitle.textContent = g.title;
+            left.appendChild(check);
+            left.appendChild(gTitle);
+
+            var right = document.createElement('span');
+            right.style.cssText = 'font-size:11px;font-weight:700;background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:12px;';
+            right.textContent = giftLabel;
+
+            row.appendChild(left);
+            row.appendChild(right);
+            card.appendChild(row);
+          });
+
+          if (isProductGift) {
+            var msg = document.createElement('div');
+            msg.style.cssText = 'font-size:12px;color:#6b7280;margin-top:10px;text-align:center;font-style:italic;';
+            msg.textContent = 'Gift will be added automatically when you qualify';
+            card.appendChild(msg);
+          }
+
+          wrapper.appendChild(card);
+          root.appendChild(wrapper);
         });
-
-        var statusMessage = isProductGift
-          ? '<div style="font-size:12px;color:#6b7280;margin-top:10px;text-align:center;font-style:italic;">Gift will be added automatically when you qualify</div>'
-          : '';
-
-        root.innerHTML = '<div style="margin-bottom:16px;">'
-          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:6px;">' + sectionLabel + '</div>'
-          + '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#fff;">'
-          + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
-          + '<div style="font-size:14px;font-weight:600;color:#111827;">' + (offer.discountTitle || offer.title) + '</div>'
-          + '<div style="background:' + badgeBg + ';color:' + badgeColor + ';font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;">' + badgeText + '</div>'
-          + '</div>'
-          + '<div style="font-size:12px;color:#9ca3af;margin-top:5px;">' + requirementText + '</div>'
-          + gifts + statusMessage
-          + '</div></div>';
 
         root.style.display = 'block';
 
         // Initial check on page load
-        getCart().then(function (cart) { autoAddGifts(offer, cart); });
+        getCart().then(function (cart) { 
+          data.offers.forEach(function(o) { autoAddGifts(o, cart); });
+        });
       })
-      .catch(function (err) { console.error('[BXGY]', err); });
+      .catch(function (err) {
+        console.error('[BXGY] Error fetching offers:', err);
+      });
   }
 
   function mountWidget() {

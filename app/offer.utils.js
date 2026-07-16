@@ -16,5 +16,10 @@ export const getStatusColor = (status) => {
  * Format date to locale string
  */
 export const formatDate = (date) => {
-  return date ? new Date(date).toLocaleDateString() : "—";
+  if (!date) return "—";
+  const d = new Date(date);
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };

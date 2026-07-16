@@ -1,4 +1,14 @@
 import { useState } from "react";
+import {
+  Card,
+  BlockStack,
+  InlineStack,
+  Text,
+  Box,
+  Badge,
+  Divider,
+  Button
+} from "@shopify/polaris";
 
 const QuantityBreakcart = ({
   discountTitle,
@@ -27,19 +37,19 @@ const QuantityBreakcart = ({
   const totalDiscounted = unitPrice * (Number(selectedTier?.quantity) || 0);
 
   return (
-    <s-section>
-      <s-card>
-        <s-stack direction="block" gap="loose" alignment="center">
-          <s-stack direction="block" gap="extra-tight" alignment="center">
-            <s-heading variant="headingMd">
+    <Box paddingBlockEnd="400">
+      <Card>
+        <BlockStack gap="500">
+          <BlockStack gap="100">
+            <Text as="h2" variant="headingMd">
               {discountTitle || "Volume discount save"}
-            </s-heading>
-            <s-text tone="subdued">
+            </Text>
+            <Text as="p" tone="subdued">
               {discountDescription || "Best deals selected for you!"}
-            </s-text>
-          </s-stack>
+            </Text>
+          </BlockStack>
 
-          <s-stack direction="block" gap="small" width="100%">
+          <BlockStack gap="200">
             {tiers?.map((tier, index) => {
               const isSelected = selectedIndex === index;
               const tierUnitPrice = calculateDiscountedPrice(tier);
@@ -47,116 +57,120 @@ const QuantityBreakcart = ({
               const tierOriginalTotal = basePrice * tier.quantity;
 
               return (
-                <s-box
+                <div
                   key={index}
-                  padding="base"
-                  borderRadius="base"
-                  border={isSelected ? "bold" : "base"}
-                  background={isSelected ? "surface-secondary" : "surface"}
                   onClick={() => setSelectedIndex(index)}
-                  style={{ cursor: "pointer", transition: "all 0.2s" }}
+                  style={{ cursor: "pointer", outline: "none" }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      setSelectedIndex(index);
+                    }
+                  }}
                 >
-                  <s-grid
-                    gridTemplateColumns="auto 1fr auto"
-                    gap="base"
-                    alignment="center"
+                  <Box
+                    padding="300"
+                    borderRadius="200"
+                    borderWidth={isSelected ? "050" : "025"}
+                    borderColor={isSelected ? "border-brand" : "border"}
+                    background={isSelected ? "bg-surface-brand" : "bg-surface"}
                   >
-                    <s-box
-                      width="20px"
-                      height="20px"
-                      borderRadius="full"
-                      border="bold"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderColor: isSelected
-                          ? "var(--s-color-border-info)"
-                          : "var(--s-color-border-base)",
-                      }}
-                    >
-                      {isSelected && (
-                        <s-box
-                          width="10px"
-                          height="10px"
+                    <InlineStack align="space-between" blockAlign="center">
+                      <InlineStack gap="300" blockAlign="center">
+                        <Box
+                          width="20px"
+                          height="20px"
                           borderRadius="full"
-                          background="info"
-                        />
-                      )}
-                    </s-box>
+                          borderWidth="025"
+                          borderColor={isSelected ? "border-brand" : "border"}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {isSelected && (
+                            <Box
+                              width="10px"
+                              height="10px"
+                              borderRadius="full"
+                              background="bg-surface-brand-active"
+                            />
+                          )}
+                        </Box>
 
-                    <s-stack
-                      direction="horizontal"
-                      gap="tight"
-                      alignment="center"
-                    >
-                      <s-text fontWeight="bold">
-                        {tier.tierTitle || "Bundle"}
-                      </s-text>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" fontWeight="bold">
+                            {tier.tierTitle || "Bundle"}
+                          </Text>
 
-                      {tier.labelEnabled && (
-                        <s-badge tone="attention" size="small">
-                          {tier.labelText}
-                        </s-badge>
-                      )}
+                          {tier.labelEnabled && (
+                            <Badge tone="attention">
+                              {tier.labelText}
+                            </Badge>
+                          )}
 
-                      {tier.tagEnabled && (
-                        <s-text tone="subdued" variant="bodySm">
-                          ({tier.tagText})
-                        </s-text>
-                      )}
-                    </s-stack>
+                          {tier.tagEnabled && (
+                            <Text as="span" tone="subdued" variant="bodySm">
+                              ({tier.tagText})
+                            </Text>
+                          )}
+                        </InlineStack>
+                      </InlineStack>
 
-                    <s-stack direction="block" alignment="end" gap="none">
-                      <s-text fontWeight="bold">
-                        ₹{tierTotal.toLocaleString()}
-                      </s-text>
-                      <s-text
-                        tone="subdued"
-                        decoration="line-through"
-                        variant="bodySm"
-                      >
-                        ₹{tierOriginalTotal.toLocaleString()}
-                      </s-text>
-                    </s-stack>
-                  </s-grid>
-                </s-box>
+                      <BlockStack gap="0" inlineAlign="end">
+                        <Text as="span" fontWeight="bold">
+                          ₹{tierTotal.toLocaleString()}
+                        </Text>
+                        <Text
+                          as="span"
+                          tone="subdued"
+                          textDecorationLine="line-through"
+                          variant="bodySm"
+                        >
+                          ₹{tierOriginalTotal.toLocaleString()}
+                        </Text>
+                      </BlockStack>
+                    </InlineStack>
+                  </Box>
+                </div>
               );
             })}
-          </s-stack>
+          </BlockStack>
 
-          <s-stack direction="block" gap="small" width="100%">
-            <s-divider></s-divider>
-            <s-grid gridTemplateColumns="1fr auto" alignment="center">
-              <s-text variant="headingSm">Total bundle price :</s-text>
-              <s-stack direction="horizontal" gap="tight" alignment="center">
-                <s-text variant="headingMd" fontWeight="bold">
+          <BlockStack gap="400">
+            <Divider />
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="span" variant="headingSm">Total bundle price :</Text>
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="span" variant="headingMd" fontWeight="bold">
                   ₹{totalDiscounted.toLocaleString()}
-                </s-text>
-                <s-text
+                </Text>
+                <Text
+                  as="span"
                   tone="subdued"
-                  decoration="line-through"
+                  textDecorationLine="line-through"
                   variant="bodySm"
                 >
                   ₹{totalOriginal.toLocaleString()}
-                </s-text>
-              </s-stack>
-            </s-grid>
+                </Text>
+              </InlineStack>
+            </InlineStack>
 
-            <s-button
+            <Button
               variant="primary"
               size="large"
               fullWidth
               onClick={() => saveOffer(selectedTier)}
-              style={{ backgroundColor: "#1a1a1a", color: "white" }}
             >
               Add bundles to cart (
               {selectedTier.label || `${selectedTier.value}% OFF`})
-            </s-button>
-          </s-stack>
-        </s-stack>
-      </s-card>
-    </s-section>
+            </Button>
+          </BlockStack>
+        </BlockStack>
+      </Card>
+    </Box>
   );
 };
 

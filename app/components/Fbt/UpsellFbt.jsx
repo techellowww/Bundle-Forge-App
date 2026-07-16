@@ -242,7 +242,7 @@ export default function UpsellFbt({ offer }) {
   return (
     <Page
       title={isEditing ? "Edit FBT Offer" : "Create FBT Offer"}
-      backAction={{ onAction: () => navigate("/app/fbt-list") }}
+      backAction={{ content: 'Frequently Bought Together', onAction: () => navigate('/app/fbt-list') }}
       primaryAction={{
         content: saving ? "Saving…" : isEditing ? "Update Offer" : "Save Offer",
         onAction: saveOffer,

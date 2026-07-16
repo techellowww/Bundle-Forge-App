@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useFetcher } from "react-router";
 import {
   Page,
   Layout,
@@ -16,6 +16,7 @@ import GiftSection from "./GiftSection";
 
 const BuyXGetY = ({ offer = null }) => {
   const navigate = useNavigate();
+  const fetcher = useFetcher();
   const isEditing = !!offer;
 
   // Basic info
@@ -185,25 +186,11 @@ const BuyXGetY = ({ offer = null }) => {
             : null,
       };
 
-      const res = await fetch("/api/bxgy-offers", {
+      fetcher.submit(payload, {
         method: isEditing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        action: "/api/bxgy-offers",
+        encType: "application/json",
       });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to save offer");
-      }
-
-      shopify.toast.show(
-        isEditing
-          ? "Offer updated successfully!"
-          : "Offer created successfully!",
-        { duration: 3000 },
-      );
-      navigate("/app/bxgy-list");
     } catch (err) {
       console.error("Save failed:", err);
       shopify.toast.show(err.message || "Failed to save offer", {
@@ -212,6 +199,24 @@ const BuyXGetY = ({ offer = null }) => {
     }
   };
 
+  useEffect(() => {
+    if (fetcher.data && fetcher.state === "idle") {
+      if (fetcher.data.success) {
+        shopify.toast.show(
+          isEditing
+            ? "Offer updated successfully!"
+            : "Offer created successfully!",
+          { duration: 3000 },
+        );
+        navigate("/app/bxgy-list");
+      } else if (fetcher.data.error) {
+        shopify.toast.show(fetcher.data.error || "Failed to save offer", {
+          isError: true,
+        });
+      }
+    }
+  }, [fetcher.data, fetcher.state, navigate, isEditing]);
+
   return (
     <Page
       title={isEditing ? "Edit BXGY Offer" : "Create BXGY Offer"}
@@ -219,6 +224,7 @@ const BuyXGetY = ({ offer = null }) => {
       primaryAction={{
         content: isEditing ? "Update Offer" : "Save Offer",
         onAction: saveOffer,
+        loading: fetcher.state === "submitting",
       }}
     >
       <Layout>
@@ -310,7 +316,7 @@ const BuyXGetY = ({ offer = null }) => {
       </Layout>
 
       <Box paddingBlockStart="400">
-        <Button variant="primary" onClick={saveOffer}>
+        <Button variant="primary" onClick={saveOffer} loading={fetcher.state === "submitting"}>
           {isEditing ? "Update Offer" : "Save Offer"}
         </Button>
       </Box>

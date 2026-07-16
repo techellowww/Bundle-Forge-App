@@ -23,6 +23,12 @@ const FixedBundle = ({ offer }) => {
   const [offerPercentage, setOfferPercentage] = useState(
     offer?.offerPercentage != null ? String(offer.offerPercentage) : "",
   );
+  const [requireMinQty, setRequireMinQty] = useState(
+    offer?.minQuantity != null && offer.minQuantity > 0,
+  );
+  const [minQuantity, setMinQuantity] = useState(
+    offer?.minQuantity != null ? String(offer.minQuantity) : "1",
+  );
   const [status, setStatus] = useState(offer?.status ?? "active");
   const [selectProducts, setSelectProducts] = useState(
     offer?.products?.map((p) => ({
@@ -57,6 +63,7 @@ const FixedBundle = ({ offer }) => {
         endDate,
         status,
         offerPercentage: pct,
+        minQuantity: requireMinQty ? parseInt(minQuantity, 10) || 1 : null,
         giftProducts: selectProducts.map((p) => ({
           id: p.id,
           title: p.title,
@@ -105,6 +112,10 @@ const FixedBundle = ({ offer }) => {
             setSelectProducts={setSelectProducts}
             offerPercentage={offerPercentage}
             setOfferPercentage={setOfferPercentage}
+            requireMinQty={requireMinQty}
+            setRequireMinQty={setRequireMinQty}
+            minQuantity={minQuantity}
+            setMinQuantity={setMinQuantity}
           />
         </s-stack>
 

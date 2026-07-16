@@ -1,5 +1,5 @@
 import { authenticate } from "../shopify.server";
-import db from "../db.server";
+import db, { resolveShop } from "../db.server";
 
 const badRequest = (error) =>
   Response.json({ success: false, error }, { status: 400 });
@@ -172,7 +172,7 @@ export async function loader({ request }) {
   const id = url.searchParams.get("id");
 
   const { session } = await authenticate.admin(request);
-  const shop = await db.shop.findUnique({ where: { domain: session.shop } });
+  const shop = await resolveShop(session.shop);
 
   if (id) {
     const offer = await db.bxgyOffer.findFirst({
@@ -199,16 +199,7 @@ export async function loader({ request }) {
 // ── POST / PUT / DELETE ───────────────────────────────────────────────────────
 export async function action({ request }) {
   const { admin, session } = await authenticate.admin(request);
-
-  const shop = await db.shop.findUnique({
-    where: {
-      domain: session.shop,
-    },
-  });
-
-  if (!shop) {
-    return badRequest("Shop not found");
-  }
+  const shop = await resolveShop(session.shop);
 
   const method = request.method.toUpperCase();
 
@@ -357,6 +348,7 @@ export async function action({ request }) {
                 ? new Date(startDate).toISOString()
                 : new Date().toISOString(),
               endsAt: endDate ? new Date(endDate).toISOString() : null,
+              combinesWith: { productDiscounts: true },
               metafields: [
                 {
                   namespace: "bxgy",
@@ -442,6 +434,7 @@ export async function action({ request }) {
                 ? new Date(startDate).toISOString()
                 : new Date().toISOString(),
               endsAt: endDate ? new Date(endDate).toISOString() : null,
+              combinesWith: { productDiscounts: true },
               metafields: [
                 {
                   namespace: "bxgy",

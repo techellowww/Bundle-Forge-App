@@ -9,6 +9,7 @@ import {
   Select,
   Button,
   Thumbnail,
+  Checkbox,
 } from "@shopify/polaris";
 
 const BundleOffer = ({
@@ -26,6 +27,10 @@ const BundleOffer = ({
   setSelectProducts,
   offerPercentage,
   setOfferPercentage,
+  requireMinQty,
+  setRequireMinQty,
+  minQuantity,
+  setMinQuantity,
 }) => {
   const MAX_PRODUCTS = 4;
 
@@ -34,38 +39,31 @@ const BundleOffer = ({
       const result = await shopify.resourcePicker({
         type: "product",
         multiple: true,
+        selectionIds: selectProducts.map((p) => ({ id: p.id })),
       });
 
-      if (result?.selection?.length) {
-        setSelectProducts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
+      if (result && result.selection) {
+        if (result.selection.length > MAX_PRODUCTS) {
+          shopify.toast.show(
+            `Maximum ${MAX_PRODUCTS} products can be selected.`,
+            { isError: true },
+          );
+          return;
+        }
 
-          const newProducts = result.selection
-            .filter((p) => !existingIds.has(p.id))
-            .map((product) => ({
-              id: product.id,
-              title: product.title,
-              images: product.images || [],
-              featuredImage: product.featuredImage || null,
-              vendor: product.vendor,
-              productType: product.productType,
-              price: product.variants?.[0]?.price
-                ? parseFloat(product.variants[0].price)
-                : null,
-            }));
-
-          const merged = [...prev, ...newProducts];
-
-          if (merged.length > MAX_PRODUCTS) {
-            shopify.toast.show(
-              `Maximum ${MAX_PRODUCTS} products can be selected.`,
-              { isError: true },
-            );
-            return prev;
-          }
-
-          return merged;
-        });
+        setSelectProducts(
+          result.selection.map((product) => ({
+            id: product.id,
+            title: product.title,
+            images: product.images || [],
+            featuredImage: product.featuredImage || null,
+            vendor: product.vendor,
+            productType: product.productType,
+            price: product.variants?.[0]?.price
+              ? parseFloat(product.variants[0].price)
+              : null,
+          }))
+        );
       }
     } catch (err) {
       console.error(err);
@@ -137,6 +135,23 @@ const BundleOffer = ({
           helpText="Enter the discount percentage customers receive when purchasing the complete bundle."
         />
 
+        <Checkbox
+          label="Require minimum purchase quantity"
+          checked={requireMinQty}
+          onChange={setRequireMinQty}
+        />
+
+        {requireMinQty && (
+          <TextField
+            label="Minimum quantity to purchase"
+            type="number"
+            value={minQuantity}
+            onChange={setMinQuantity}
+            autoComplete="off"
+            min={1}
+          />
+        )}
+
         <BlockStack gap="200">
           <Text as="h3" variant="headingSm">
             Bundle Products
@@ -167,9 +182,15 @@ const BundleOffer = ({
               const discounted = getDiscountedPrice(product.price);
 
               return (
-                <Card key={product.id} roundedAbove="sm">
+                <Box
+                  key={product.id}
+                  padding="200"
+                  borderWidth="025"
+                  borderColor="border"
+                  borderRadius="200"
+                >
                   <InlineStack align="space-between" blockAlign="center">
-                    <InlineStack gap="300" blockAlign="center">
+                    <InlineStack gap="200" blockAlign="center">
                       <Thumbnail
                         source={
                           product.featuredImage?.url ||
@@ -181,8 +202,8 @@ const BundleOffer = ({
                         size="small"
                       />
 
-                      <BlockStack gap="100">
-                        <Text as="span" fontWeight="medium">
+                      <BlockStack gap="0">
+                        <Text as="span" fontWeight="medium" variant="bodyMd">
                           {product.title}
                         </Text>
 
@@ -222,7 +243,7 @@ const BundleOffer = ({
                       Remove
                     </Button>
                   </InlineStack>
-                </Card>
+                </Box>
               );
             })}
           </BlockStack>

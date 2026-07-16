@@ -1,6 +1,7 @@
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
-import { useLoaderData, useNavigate } from "react-router";
+import { useLoaderData, useNavigate, useRouteError } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useState } from "react";
 import {
   Page,
@@ -155,6 +156,7 @@ export default function BxgyListPage() {
 
   return (
     <Page
+      backAction={{ content: 'Dashboard', onAction: () => navigate('/app') }}
       title="Buy X Get Y Offers"
       primaryAction={{
         content: "Create Offer",
@@ -309,3 +311,11 @@ export default function BxgyListPage() {
     </Page>
   );
 }
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

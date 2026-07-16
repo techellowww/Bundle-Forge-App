@@ -9,7 +9,10 @@ import {
   Box,
   Button,
   Thumbnail,
+  Autocomplete,
+  Icon,
 } from "@shopify/polaris";
+import { SearchIcon } from "@shopify/polaris-icons";
 
 const MultiSelectField = ({
   label,
@@ -21,145 +24,56 @@ const MultiSelectField = ({
   loading = false,
 }) => {
   const [inputValue, setInputValue] = useState("");
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  const filtered = options.filter(
-    (o) =>
-      !selected.includes(o) &&
-      o.toLowerCase().includes(inputValue.toLowerCase()),
-  );
+  const [autocompleteOptions, setAutocompleteOptions] = useState([]);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    const formatted = options.map((opt) => ({ value: opt, label: opt }));
+    setAutocompleteOptions(formatted);
+  }, [options]);
 
-  const handleSelect = (item) => {
-    if (!selected.includes(item)) onAdd(item);
-    setInputValue("");
+  const updateText = (value) => {
+    setInputValue(value);
+    if (value === "") {
+      setAutocompleteOptions(
+        options.map((opt) => ({ value: opt, label: opt }))
+      );
+      return;
+    }
+    const filtered = options
+      .filter((opt) => opt.toLowerCase().includes(value.toLowerCase()))
+      .map((opt) => ({ value: opt, label: opt }));
+    setAutocompleteOptions(filtered);
   };
+
+  const textField = (
+    <Autocomplete.TextField
+      onChange={updateText}
+      label={label}
+      value={inputValue}
+      placeholder={loading ? "Loading..." : placeholder}
+      autoComplete="off"
+      disabled={loading}
+      prefix={<Icon source={SearchIcon} tone="base" />}
+    />
+  );
 
   return (
     <BlockStack gap="200">
-      <div ref={containerRef} style={{ position: "relative" }}>
-        <Text as="p" variant="bodyMd" fontWeight="medium">
-          {label}
-        </Text>
+      <Autocomplete
+        allowMultiple
+        options={autocompleteOptions}
+        selected={selected}
+        textField={textField}
+        onSelect={(selectedArr) => {
+          const added = selectedArr.find((s) => !selected.includes(s));
+          if (added) onAdd(added);
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            border: "1px solid #8c9196",
-            borderRadius: "8px",
-            padding: "8px 12px",
-            background: "#fff",
-            cursor: "text",
-            gap: "8px",
-            marginTop: "4px",
-          }}
-          onClick={() => {
-            if (!loading) setOpen(true);
-          }}
-        >
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              setOpen(true);
-            }}
-            onFocus={() => {
-              if (!loading) setOpen(true);
-            }}
-            placeholder={loading ? "Loading..." : placeholder}
-            disabled={loading}
-            style={{
-              border: "none",
-              outline: "none",
-              flex: 1,
-              fontSize: "14px",
-              color: "#202223",
-              background: "transparent",
-            }}
-          />
-          {loading && (
-            <div
-              style={{
-                width: "16px",
-                height: "16px",
-                border: "2px solid #8c9196",
-                borderTopColor: "#202223",
-                borderRadius: "50%",
-                animation: "spin 0.6s linear infinite",
-              }}
-            />
-          )}
-        </div>
+          const removed = selected.find((s) => !selectedArr.includes(s));
+          if (removed) onRemove(removed);
 
-        {open && !loading && (
-          <div
-            style={{
-              position: "absolute",
-              top: "calc(100% + 4px)",
-              left: 0,
-              right: 0,
-              background: "#fff",
-              border: "1px solid #8c9196",
-              borderRadius: "8px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              zIndex: 9999,
-              maxHeight: "220px",
-              overflowY: "auto",
-            }}
-          >
-            {filtered.length > 0 ? (
-              filtered.map((item) => (
-                <div
-                  key={item}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSelect(item);
-                  }}
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: "14px",
-                    cursor: "pointer",
-                    color: "#202223",
-                    borderBottom: "1px solid #f1f1f1",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "#f6f6f7")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "#fff")
-                  }
-                >
-                  {item}
-                </div>
-              ))
-            ) : (
-              <div
-                style={{
-                  padding: "10px 14px",
-                  fontSize: "14px",
-                  color: "#6d7175",
-                }}
-              >
-                {inputValue
-                  ? `No results for "${inputValue}"`
-                  : "All options selected"}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          setInputValue("");
+        }}
+      />
 
       {selected.length > 0 && (
         <InlineStack gap="100" wrap>
@@ -170,8 +84,6 @@ const MultiSelectField = ({
           ))}
         </InlineStack>
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </BlockStack>
   );
 };

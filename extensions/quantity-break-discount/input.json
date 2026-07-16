@@ -1,0 +1,41 @@
+{
+  "cart": {
+    "lines": [
+      {
+        "id": "gid://shopify/CartLine/0",
+        "quantity": 4,
+        "attribute": {
+          "value": "2"
+        },
+        "merchandise": {
+          "__typename": "ProductVariant",
+          "id": "gid://shopify/ProductVariant/123",
+          "product": {
+            "id": "gid://shopify/Product/123",
+            "vendor": "Test Vendor",
+            "productType": "Test Type"
+          }
+        }
+      }
+    ]
+  },
+  "discount": {
+    "metafield": {
+      "jsonValue": {
+        "applyTo": "allProducts",
+        "tiers": [
+          {
+            "quantity": 2,
+            "discountType": "percentage",
+            "value": 20
+          },
+          {
+            "quantity": 3,
+            "discountType": "percentage",
+            "value": 30
+          }
+        ]
+      }
+    }
+  }
+}

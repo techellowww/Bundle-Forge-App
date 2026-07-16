@@ -490,6 +490,7 @@ model FixedBundleOffer {
   discountType    DiscountType?
   discountValue   Float?
   offerPercentage Float?
+  minQuantity     Int?
 
   startDate DateTime?
   endDate   DateTime?

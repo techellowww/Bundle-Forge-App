@@ -156,7 +156,7 @@ const QuantityBreak = ({ offer }) => {
   };
 
   return (
-    <s-page>
+    <div>
       <s-grid gridTemplateColumns="2fr 1fr" gap="large">
         <s-stack direction="block" gap="large">
           <s-section>
@@ -236,7 +236,7 @@ const QuantityBreak = ({ offer }) => {
           {isEditing ? "Update Offer" : "Save Offer"}
         </s-button>
       </s-grid>
-    </s-page>
+    </div>
   );
 };
 

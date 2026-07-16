@@ -1,20 +1,29 @@
-import prisma from "../db.server";
+import prisma, { resolveShop } from "../db.server";
 import { authenticate } from "../shopify.server";
 
-async function resolveShop(admin, session) {
-  const domain = session.shop;
-  let shop = await prisma.shop.findUnique({ where: { domain } });
-  if (!shop) {
-    shop = await prisma.shop.create({
-      data: { domain, name: domain },
-    });
+const FUNCTION_HANDLE = "fbt-discount";
+
+const CREATE_DISCOUNT = `#graphql
+  mutation discountAutomaticAppCreate($automaticAppDiscount: DiscountAutomaticAppInput!) {
+    discountAutomaticAppCreate(automaticAppDiscount: $automaticAppDiscount) {
+      automaticAppDiscount { discountId title status }
+      userErrors { field message }
+    }
   }
-  return shop;
-}
+`;
+
+const UPDATE_DISCOUNT = `#graphql
+  mutation discountAutomaticAppUpdate($id: ID!, $automaticAppDiscount: DiscountAutomaticAppInput!) {
+    discountAutomaticAppUpdate(id: $id, automaticAppDiscount: $automaticAppDiscount) {
+      automaticAppDiscount { discountId title status }
+      userErrors { field message }
+    }
+  }
+`;
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
-  const shop = await resolveShop(null, session);
+  const shop = await resolveShop(session.shop);
 
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
@@ -45,7 +54,7 @@ export async function loader({ request }) {
 
 export async function action({ request }) {
   const { admin, session } = await authenticate.admin(request);
-  const shop = await resolveShop(admin, session);
+  const shop = await resolveShop(session.shop);
 
   const method = request.method.toUpperCase();
   const body = await request.json();
@@ -86,8 +95,29 @@ export async function action({ request }) {
     bundledProducts = [],
   } = body;
 
-  if (!title?.trim())
-    return Response.json({ error: "title is required" }, { status: 400 });
+  if (!title?.trim() || typeof title !== "string") {
+    return Response.json({ error: "title is required and must be a string" }, { status: 400 });
+  }
+
+  if (status && !["active", "inactive"].includes(status)) {
+    return Response.json({ error: "status must be active or inactive" }, { status: 400 });
+  }
+
+  if (applyTo && !["allProducts", "selectedProducts", "excludeProducts", "exceptSelectedVendorTypeCollection", "productsInSelectedVendorTypeCollection"].includes(applyTo)) {
+    return Response.json({ error: "invalid applyTo value" }, { status: 400 });
+  }
+
+  if (discountType && !["percentage", "amount", "fixedPrice", "freeShipping", "none"].includes(discountType)) {
+    return Response.json({ error: "invalid discountType" }, { status: 400 });
+  }
+
+  if (discountValue != null && isNaN(Number(discountValue))) {
+    return Response.json({ error: "discountValue must be a number" }, { status: 400 });
+  }
+
+  if (!Array.isArray(triggerProducts) || !Array.isArray(bundledProducts)) {
+    return Response.json({ error: "triggerProducts and bundledProducts must be arrays" }, { status: 400 });
+  }
 
   const offerData = {
     title: title.trim(),
@@ -165,6 +195,71 @@ export async function action({ request }) {
       },
       include: { triggerProducts: true, bundledProducts: true },
     });
+  }
+
+  // GraphQL Sync
+  let discountId = offer.shopifyDiscountId;
+  const graphqlConfig = {
+    title: offer.title,
+    functionHandle: FUNCTION_HANDLE,
+    discountClasses: ["PRODUCT"],
+    startsAt: offer.startDate ? new Date(offer.startDate).toISOString() : new Date().toISOString(),
+    endsAt: offer.endDate ? new Date(offer.endDate).toISOString() : null,
+    combinesWith: { productDiscounts: true },
+  };
+
+  if (!discountId) {
+    const res = await admin.graphql(CREATE_DISCOUNT, {
+      variables: { automaticAppDiscount: graphqlConfig },
+    });
+    const { data } = await res.json();
+    const createdId = data?.discountAutomaticAppCreate?.automaticAppDiscount?.discountId;
+    
+    if (createdId) {
+      discountId = createdId;
+      offer = await prisma.frequentlyBoughtOffer.update({
+        where: { id: offer.id },
+        data: { shopifyDiscountId: createdId },
+        include: { triggerProducts: true, bundledProducts: true },
+      });
+    }
+  } else {
+    await admin.graphql(UPDATE_DISCOUNT, {
+      variables: { id: discountId, automaticAppDiscount: graphqlConfig },
+    });
+  }
+
+  // Sync Metafields
+  if (discountId) {
+    await admin.graphql(
+      `#graphql
+      mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields { key namespace value }
+          userErrors { field message }
+        }
+      }`,
+      {
+        variables: {
+          metafields: [
+            {
+              ownerId: discountId,
+              namespace: "fbt",
+              key: "config",
+              type: "json",
+              value: JSON.stringify({
+                offerId: offer.id,
+                discountType: offer.discountType,
+                discountValue: offer.discountValue,
+                triggerProductIds: offer.triggerProducts.map((p) => p.productId),
+                bundledProductIds: offer.bundledProducts.map((p) => p.productId),
+                status: offer.status,
+              }),
+            },
+          ],
+        },
+      }
+    );
   }
 
   return Response.json({ success: true, offer });

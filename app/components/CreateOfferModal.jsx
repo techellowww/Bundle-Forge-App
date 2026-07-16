@@ -42,7 +42,7 @@ export default function CreateOfferModal({ open, onClose }) {
   ];
 
   return (
-    <Modal open={open} onClose={onClose} title="Choose offer type" size="large">
+    <Modal open={open} onClose={onClose} title="Choose offer type" size="medium">
       <Modal.Section>
         <BlockStack gap="500">
           <Text alignment="center" variant="headingLg" as="h2">

@@ -26,9 +26,10 @@ const SelectGifts = ({
       const result = await shopify.resourcePicker({
         type: "product",
         multiple: true,
+        selectionIds: giftProducts.map((p) => ({ id: p.id })),
       });
 
-      if (result?.selection?.length) {
+      if (result && result.selection) {
         setGiftProducts(
           result.selection.map((product) => ({
             id: product.id,

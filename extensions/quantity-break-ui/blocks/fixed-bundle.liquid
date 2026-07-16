@@ -45,70 +45,105 @@
       .then(function (data) {
         if (!data.offers || !data.offers.length) return;
 
-        var html =
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;' +
-          'letter-spacing:0.08em;color:#6b7280;margin-bottom:10px;">Bundle Offers</div>';
+        root.innerHTML = ''; // Clear securely
+
+        var headerEl = document.createElement('div');
+        headerEl.style.cssText = 'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:10px;';
+        headerEl.textContent = 'Bundle Offers';
+        root.appendChild(headerEl);
 
         data.offers.forEach(function (offer) {
-          var pct      = offer.offerPercentage;
+          var pct = offer.offerPercentage;
           var products = offer.products || [];
+          var minQty = offer.minQuantity;
+          var isMinQtyEnabled = offer.isMinQuantityEnabled;
 
-          var productTitles = products.map(function (p) { return p.title; });
+          var card = document.createElement('div');
+          card.style.cssText = 'border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:8px;background:#fff;';
 
-          var comboText =
-            'Combine <strong>' +
-            productTitles.join(' + ') +
-            '</strong> and get <strong>' + pct + '% off</strong>!';
+          var cardHeader = document.createElement('div');
+          cardHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;';
 
-          var thumbsWithSep = products.map(function (p, idx) {
-            var imgSrc = p.imageUrl || '';
-            var thumb =
-              '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-                (imgSrc
-                  ? '<img src="' + imgSrc + '" width="48" height="48" ' +
-                    'style="border-radius:6px;object-fit:cover;border:1px solid #e5e7eb;" ' +
-                    'alt="' + p.title + '">'
-                  : '<div style="width:48px;height:48px;border-radius:6px;background:#f3f4f6;' +
-                    'border:1px solid #e5e7eb;"></div>') +
-                '<span style="font-size:11px;color:#6b7280;max-width:56px;text-align:center;' +
-                'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-                p.title + '</span>' +
-              '</div>';
-            if (idx < products.length - 1) {
-              thumb +=
-                '<span style="font-size:18px;color:#9ca3af;align-self:flex-start;margin-top:12px;">+</span>';
+          var titleEl = document.createElement('div');
+          titleEl.style.cssText = 'font-size:14px;font-weight:600;color:#111827;';
+          titleEl.textContent = offer.title;
+          cardHeader.appendChild(titleEl);
+
+          if (pct) {
+            var badgeEl = document.createElement('div');
+            badgeEl.style.cssText = 'background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;';
+            badgeEl.textContent = pct + '% OFF';
+            cardHeader.appendChild(badgeEl);
+          }
+          card.appendChild(cardHeader);
+
+          var thumbsRow = document.createElement('div');
+          thumbsRow.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;flex-wrap:wrap;';
+
+          var productTitles = [];
+
+          products.forEach(function(p, idx) {
+            productTitles.push(p.title);
+
+            var thumbWrap = document.createElement('div');
+            thumbWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+
+            if (p.imageUrl) {
+              var img = document.createElement('img');
+              img.src = p.imageUrl;
+              img.width = 48;
+              img.height = 48;
+              img.style.cssText = 'border-radius:6px;object-fit:cover;border:1px solid #e5e7eb;';
+              img.alt = p.title;
+              thumbWrap.appendChild(img);
+            } else {
+              var placeholder = document.createElement('div');
+              placeholder.style.cssText = 'width:48px;height:48px;border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb;';
+              thumbWrap.appendChild(placeholder);
             }
-            return thumb;
-          }).join('');
 
-          html +=
-            '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;' +
-            'margin-bottom:8px;background:#fff;">' +
+            var pName = document.createElement('span');
+            pName.style.cssText = 'font-size:11px;color:#6b7280;max-width:56px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+            pName.textContent = p.title;
+            thumbWrap.appendChild(pName);
 
-              '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
-                '<div style="font-size:14px;font-weight:600;color:#111827;">' + offer.title + '</div>' +
-                (pct
-                  ? '<div style="background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;' +
-                    'padding:4px 10px;border-radius:20px;white-space:nowrap;">' + pct + '% OFF</div>'
-                  : '') +
-              '</div>' +
+            thumbsRow.appendChild(thumbWrap);
 
-              '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;flex-wrap:wrap;">' +
-                thumbsWithSep +
-              '</div>' +
+            if (idx < products.length - 1) {
+              var plus = document.createElement('span');
+              plus.style.cssText = 'font-size:18px;color:#9ca3af;align-self:flex-start;margin-top:12px;';
+              plus.textContent = '+';
+              thumbsRow.appendChild(plus);
+            }
+          });
 
-              '<div style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.4;">' +
-                comboText +
-              '</div>' +
+          card.appendChild(thumbsRow);
 
-            '</div>';
+          var comboText = document.createElement('div');
+          comboText.style.cssText = 'font-size:13px;color:#374151;margin-bottom:4px;line-height:1.4;';
+          
+          var text1 = document.createTextNode('Combine ');
+          var strong1 = document.createElement('strong');
+          strong1.textContent = productTitles.join(' + ');
+          var text2 = document.createTextNode(' and get ');
+          var strong2 = document.createElement('strong');
+          strong2.textContent = pct + '% off';
+          var text3 = document.createTextNode('!');
+
+          comboText.appendChild(text1);
+          comboText.appendChild(strong1);
+          comboText.appendChild(text2);
+          comboText.appendChild(strong2);
+          comboText.appendChild(text3);
+          
+          card.appendChild(comboText);
+          root.appendChild(card);
         });
 
-        root.innerHTML = html;
         root.style.display = 'block';
       })
       .catch(function (err) {
-        console.error('[FixedBundle]', err);
+        console.error('Error fetching fixed bundles', err);
       });
   }
 

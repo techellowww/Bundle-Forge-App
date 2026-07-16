@@ -1,20 +1,4 @@
-import {
-  DiscountClass,
-  OrderDiscountSelectionStrategy,
-  ProductDiscountSelectionStrategy,
-} from "../generated/api";
-
-/**
- * @typedef {import("../generated/api").CartInput} RunInput
- * @typedef {import("../generated/api").CartLinesDiscountsGenerateRunResult} CartLinesDiscountsGenerateRunResult
- */
-
-/**
- * @param {RunInput} input
- * @returns {CartLinesDiscountsGenerateRunResult}
- */
-
-export function cartLinesDiscountsGenerateRun(input) {
+function cartLinesDiscountsGenerateRun(input) {
   if (!input.cart.lines.length) return { operations: [] };
 
   const raw = input.discount.metafield?.value;
@@ -36,10 +20,6 @@ export function cartLinesDiscountsGenerateRun(input) {
   }
 
   const { offerPercentage, productIds, minQuantity } = config;
-  console.error("Loaded offer configuration: " + JSON.stringify({ offerPercentage, productIds, minQuantity }));
-  console.error("Checkbox enabled/disabled state: " + (minQuantity != null ? "enabled" : "disabled"));
-  console.error("minQuantity value: " + String(minQuantity));
-  
   if (!offerPercentage || !productIds?.length) return { operations: [] };
 
   // Count required quantities for each product in the bundle
@@ -61,26 +41,13 @@ export function cartLinesDiscountsGenerateRun(input) {
     }
   });
 
-  console.error("Cart quantities for each bundle product: " + JSON.stringify(cartQtys));
-
   // Validate minimum quantity condition if it's checked
-  const minQty = parseInt(minQuantity, 10);
-  if (!isNaN(minQty) && minQty > 0) {
-    let isEligible = true;
+  if (minQuantity) {
     for (const id of Object.keys(requiredQtys)) {
-      if (cartQtys[id] !== minQty) {
-        console.error("Eligibility result: failed for product " + id + " (qty " + cartQtys[id] + " !== " + minQty + ")");
-        isEligible = false;
-        break;
+      if (cartQtys[id] < minQuantity) {
+        return { operations: [] };
       }
     }
-    
-    if (!isEligible) {
-      return { operations: [] };
-    }
-    console.error("Eligibility result: passed");
-  } else {
-    console.error("Eligibility result: skipped (minQuantity not enabled)");
   }
 
   // Calculate the number of complete bundles
@@ -93,11 +60,8 @@ export function cartLinesDiscountsGenerateRun(input) {
   }
 
   if (bundleCount === 0 || bundleCount === Infinity) {
-    console.error("Bundle count: " + bundleCount);
     return { operations: [] };
   }
-
-  console.error("Bundle count: " + bundleCount);
 
   // Generate targets applying the discount only to the required quantities for the complete bundles
   const targets = [];
@@ -123,29 +87,43 @@ export function cartLinesDiscountsGenerateRun(input) {
     }
   }
 
-  if (!targets.length) {
-    console.error("Generated discount targets: []");
-    return { operations: [] };
-  }
-
-  console.error("Generated discount targets: " + JSON.stringify(targets));
-
-  return {
-    operations: [
-      {
-        productDiscountsAdd: {
-          candidates: [
-            {
-              message: `${offerPercentage}% off bundle`,
-              targets,
-              value: {
-                percentage: { value: parseFloat(offerPercentage) },
-              },
-            },
-          ],
-          selectionStrategy: ProductDiscountSelectionStrategy.First,
-        },
-      },
-    ],
-  };
+  return { operations: targets };
 }
+
+const input = {
+  cart: {
+    lines: [
+      {
+        id: "gid://shopify/CartLine/1",
+        quantity: 2,
+        merchandise: {
+          product: {
+            id: "gid://shopify/Product/1"
+          }
+        }
+      },
+      {
+        id: "gid://shopify/CartLine/2",
+        quantity: 2,
+        merchandise: {
+          product: {
+            id: "gid://shopify/Product/2"
+          }
+        }
+      }
+    ]
+  },
+  discount: {
+    metafield: {
+      value: JSON.stringify({
+        offerPercentage: 20,
+        minQuantity: 2,
+        productIds: ["gid://shopify/Product/1", "gid://shopify/Product/2"],
+        status: "active"
+      })
+    }
+  }
+};
+
+const result = cartLinesDiscountsGenerateRun(input);
+console.log(JSON.stringify(result, null, 2));

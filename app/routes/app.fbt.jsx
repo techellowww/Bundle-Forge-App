@@ -2,7 +2,8 @@
  * /app/routes/app.upsell-fbt.jsx
  */
 
-import { useLoaderData } from "react-router";
+import { useLoaderData, useRouteError } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import UpsellFbt from "../components/Fbt/UpsellFbt";
@@ -30,3 +31,11 @@ export default function UpsellFbtPage() {
   const { offer } = useLoaderData();
   return <UpsellFbt offer={offer} />;
 }
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};
