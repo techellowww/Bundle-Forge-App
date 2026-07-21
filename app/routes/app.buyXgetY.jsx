@@ -1,5 +1,6 @@
-import { Page, Layout } from "@shopify/polaris";
-import { useLoaderData } from "react-router";
+
+import { useLoaderData, useRouteError, useNavigate } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
@@ -47,14 +48,21 @@ export async function loader({ request }) {
 
 export default function BuyXGetYPage() {
   const { offer } = useLoaderData();
+  const navigate = useNavigate();
 
   return (
-    <Page title={offer ? "Edit Buy X Get Y Offer" : "Create Buy X Get Y Offer"}>
-      <Layout>
-        <Layout.Section>
+    <>
+      
           <BuyXGetY offer={offer} />
-        </Layout.Section>
-      </Layout>
-    </Page>
+        
+    </>
   );
 }
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

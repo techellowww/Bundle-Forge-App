@@ -15,18 +15,20 @@ export default function App() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <s-app-nav>
-        <s-link href="/app">Home</s-link>
-        {/* <s-link href="/app/additional">Additional page</s-link> */}
-        {/* <s-link href="/app/quantityBreak">Quantity Break</s-link> */}
-        <s-link href="/app/quantity-breaks">Quantity Break List</s-link>
-        {/* <s-link href="/app/buyXgetY">Buy-X Get-Y</s-link> */}
-        <s-link href="/app/bxgy-list">Buy-X Get-Y List</s-link>
-        {/* <s-link href="/app/fbt">FBT & Upsell</s-link> */}
-        <s-link href="/app/fbt-list">FBT List</s-link>
-        {/* <s-link href="/app/fixed-bundle">Fixed Bundle</s-link> */}
-        <s-link href="/app/fixed-bundles">Fixed Bundle List</s-link>
-      </s-app-nav>
+      <ui-nav-menu>
+        <a href="/app">Home</a>
+        {/* <a href="/app/additional">Additional page</a> */}
+        {/* <a href="/app/quantityBreak">Quantity Break</a> */}
+        <a href="/app/allOffers">All offers</a>
+        <a href="/app/helpSupport">Help Support</a>
+        {/* <a href="/app/quantity-breaks">Quantity Break List</a> */}
+        {/* <a href="/app/buyXgetY">Buy-X Get-Y</a> */}
+        {/* <a href="/app/bxgy-list">Buy-X Get-Y List</a> */}
+        {/* <a href="/app/fbt">FBT & Upsell</a> */}
+        {/* <a href="/app/fbt-list">FBT List</a> */}
+        {/* <a href="/app/fixed-bundle">Fixed Bundle</a> */}
+        {/* <a href="/app/fixed-bundles">Fixed Bundle List</a> */}
+      </ui-nav-menu>
       <Outlet />
     </AppProvider>
   );

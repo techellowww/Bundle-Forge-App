@@ -1,6 +1,3 @@
-import "@shopify/polaris/build/esm/styles.css";
-import { AppProvider } from "@shopify/polaris";
-import enTranslations from "@shopify/polaris/locales/en.json";
 
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
@@ -15,14 +12,15 @@ export default function App() {
           rel="stylesheet"
           href="https://cdn.shopify.com/static/fonts/inter/v4/styles.css"
         />
+        <script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
         <Meta />
         <Links />
       </head>
 
       <body>
-        <AppProvider i18n={enTranslations}>
+        
           <Outlet />
-        </AppProvider>
+        
 
         <ScrollRestoration />
         <Scripts />

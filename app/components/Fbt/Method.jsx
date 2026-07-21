@@ -19,7 +19,7 @@ const Method = ({
 }) => {
   return (
     <s-section>
-      <s-card padding="large">
+      <s-box background="surface" borderRadius="300" shadow="100" padding="large">
         <s-stack direction="block" gap="base">
           <s-heading>Bundled products</s-heading>
 
@@ -56,7 +56,7 @@ const Method = ({
             />
           )}
         </s-stack>
-      </s-card>
+      </s-box>
     </s-section>
   );
 };

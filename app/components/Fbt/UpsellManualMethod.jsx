@@ -33,7 +33,7 @@ const UpsellManualMethod = ({ bundledProducts, setBundledProducts }) => {
   };
 
   return (
-    <BlockStack gap="400">
+    <BlockStack gap="large">
       <Button variant="primary" onClick={openProductPicker}>
         Select Bundled Products
       </Button>

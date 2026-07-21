@@ -1,22 +1,8 @@
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
-import { useLoaderData, useNavigate } from "react-router";
-import { useState } from "react";
-import {
-  Page,
-  Layout,
-  Card,
-  Button,
-  ButtonGroup,
-  Badge,
-  Modal,
-  IndexTable,
-  Text,
-  InlineStack,
-  BlockStack,
-  EmptyState,
-  Box,
-} from "@shopify/polaris";
+import { useLoaderData, useNavigate, useRouteError } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+import { useState, useRef, useEffect } from "react";
 import { getOfferStatus, getStatusColor, formatDate } from "../offer.utils.js";
 
 export async function loader({ request }) {
@@ -48,6 +34,50 @@ export async function loader({ request }) {
 
   return Response.json({ bundles });
 }
+
+const CustomModal = ({ open, onClose, title, primaryAction, secondaryActions, children }) => {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      if (open) {
+        ref.current.show();
+      } else {
+        ref.current.hide();
+      }
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const handleClose = () => onClose();
+    el.addEventListener('hide', handleClose);
+    return () => el.removeEventListener('hide', handleClose);
+  }, [onClose]);
+
+  return (
+    <ui-modal ref={ref}>
+      <s-box padding="large">
+        <s-stack direction="block" gap="large">
+          <s-text as="h2" variant="headingMd">{title}</s-text>
+          {children}
+          <s-stack direction="inline" justifyContent="end" gap="base">
+            {secondaryActions.map((action, i) => (
+              <s-button key={i} onClick={action.onAction}>{action.content}</s-button>
+            ))}
+            <s-button 
+              tone={primaryAction.tone === 'critical' ? 'critical' : 'primary'}
+              onClick={primaryAction.onAction}
+            >
+              {primaryAction.loading ? "Loading..." : primaryAction.content}
+            </s-button>
+          </s-stack>
+        </s-stack>
+      </s-box>
+    </ui-modal>
+  );
+};
 
 export default function FixedBundlesListPage() {
   const { bundles } = useLoaderData();
@@ -130,157 +160,129 @@ export default function FixedBundlesListPage() {
   };
 
   return (
-    <Page
-      title="Fixed Bundle Offers"
-      primaryAction={{
-        content: "Create Bundle",
-        onAction: () => navigate("/app/fixed-bundle"),
-      }}
-    >
-      <Layout>
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text variant="bodyMd" tone="subdued">
-                  {bundles.length} bundle{bundles.length !== 1 ? "s" : ""}
-                </Text>
-              </InlineStack>
+    <>
+      <ui-title-bar title="Fixed Bundle Offers">
+        <button variant="breadcrumb" onClick={() => navigate('/app')}>
+          Dashboard
+        </button>
+        <button variant="primary" onClick={() => navigate('/app/fixed-bundle')}>
+          Create Bundle
+        </button>
+      </ui-title-bar>
+      <s-page>
+        <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">
+          <s-stack direction="block" gap="base">
+            <s-stack direction="inline" justifyContent="space-between">
+              <s-text variant="bodyMd" tone="subdued">
+                {bundles.length} bundle{bundles.length !== 1 ? "s" : ""}
+              </s-text>
+            </s-stack>
 
-              {bundles.length === 0 ? (
-                <EmptyState
-                  heading="No fixed bundles"
-                  image=""
-                  action={{
-                    content: "Create Bundle",
-                    onAction: () => navigate("/app/fixed-bundle"),
-                  }}
-                >
-                  <p>Create your first fixed bundle offer.</p>
-                </EmptyState>
-              ) : (
-                <IndexTable
-                  resourceName={{
-                    singular: "bundle",
-                    plural: "bundles",
-                  }}
-                  itemCount={bundles.length}
-                  selectable={false}
-                  headings={[
-                    { title: "Title" },
-                    { title: "Description" },
-                    { title: "Products" },
-                    { title: "Status" },
-                    { title: "Start Date" },
-                    { title: "End Date" },
-                    { title: "Actions" },
-                  ]}
-                >
-                  {bundles.map((bundle, index) => {
-                    const status = getOfferStatus(bundle);
-                    const statusColor = getStatusColor(status);
+            {bundles.length === 0 ? (
+              <s-stack direction="block" gap="base" alignItems="center">
+                <s-text as="h2" variant="headingMd">No fixed bundles</s-text>
+                <s-text as="p" tone="subdued">Create your first fixed bundle offer.</s-text>
+                <s-button onClick={() => navigate("/app/fixed-bundle")}>Create Bundle</s-button>
+              </s-stack>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e1e3e5' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Title</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Description</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Products</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Status</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Start Date</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>End Date</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bundles.map((bundle, index) => {
+                      const status = getOfferStatus(bundle);
+                      const statusColor = getStatusColor(status);
 
-                    return (
-                      <IndexTable.Row
-                        id={bundle.id}
-                        key={bundle.id}
-                        position={index}
-                      >
-                        <IndexTable.Cell>
-                          <Text as="span" fontWeight="semibold">
-                            {bundle.title}
-                          </Text>
-                        </IndexTable.Cell>
+                      return (
+                        <tr key={bundle.id} style={{ borderBottom: '1px solid #e1e3e5' }}>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-text as="span" fontWeight="semibold">
+                              {bundle.title}
+                            </s-text>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-box maxWidth="200px" title={bundle.description}>
+                              <s-text as="span" truncate="true">
+                                {bundle.description || "—"}
+                              </s-text>
+                            </s-box>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-box maxWidth="250px" title={bundle.products?.map((p) => p.title).join(", ")}>
+                              <s-text as="span" truncate="true">
+                                {getProductSummary(bundle.products)}
+                              </s-text>
+                            </s-box>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-badge tone={statusColor}>{status}</s-badge>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            {formatDate(bundle.startDate)}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            {formatDate(bundle.endDate)}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-stack direction="inline" gap="small-200">
+                              <s-button size="slim" onClick={() => handleEdit(bundle.id)}>
+                                Edit
+                              </s-button>
+                              <s-button size="slim" tone="critical" onClick={() => openDeleteModal(bundle.id, bundle.title)}>
+                                Delete
+                              </s-button>
+                            </s-stack>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </s-stack>
+        </s-box>
 
-                        <IndexTable.Cell>
-                          {bundle.description ? (
-                            <Box maxWidth="220px" title={bundle.description}>
-                              <Text as="span" truncate>
-                                {bundle.description}
-                              </Text>
-                            </Box>
-                          ) : (
-                            "—"
-                          )}
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          <Text
-                            as="span"
-                            title={bundle.products
-                              ?.map((p) => p.title)
-                              .join(", ")}
-                          >
-                            {getProductSummary(bundle.products)}
-                          </Text>
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          <Badge tone={statusColor}>{status}</Badge>
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          {formatDate(bundle.startDate)}
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          {formatDate(bundle.endDate)}
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          <ButtonGroup>
-                            <Button
-                              size="slim"
-                              onClick={() => handleEdit(bundle.id)}
-                            >
-                              Edit
-                            </Button>
-
-                            <Button
-                              size="slim"
-                              tone="critical"
-                              onClick={() =>
-                                openDeleteModal(bundle.id, bundle.title)
-                              }
-                            >
-                              Delete
-                            </Button>
-                          </ButtonGroup>
-                        </IndexTable.Cell>
-                      </IndexTable.Row>
-                    );
-                  })}
-                </IndexTable>
-              )}
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
-
-      <Modal
-        open={deleteModal.isOpen}
-        onClose={closeDeleteModal}
-        title="Delete Bundle"
-        primaryAction={{
-          content: "Delete",
-          tone: "critical",
-          loading: isDeleting,
-          onAction: handleConfirmDelete,
-        }}
-        secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: closeDeleteModal,
-          },
-        ]}
-      >
-        <Modal.Section>
-          <Text as="p">
-            Are you sure you want to delete <strong>{deleteModal.title}</strong>
-            ? This action cannot be undone.
-          </Text>
-        </Modal.Section>
-      </Modal>
-    </Page>
+        <CustomModal
+          open={deleteModal.isOpen}
+          onClose={closeDeleteModal}
+          title="Delete Bundle"
+          primaryAction={{
+            content: "Delete",
+            tone: "critical",
+            loading: isDeleting,
+            onAction: handleConfirmDelete,
+          }}
+          secondaryActions={[
+            {
+              content: "Cancel",
+              onAction: closeDeleteModal,
+            },
+          ]}
+        >
+          <s-text as="p">
+            Are you sure you want to delete <strong>{deleteModal.title}</strong>? This action cannot be undone.
+          </s-text>
+        </CustomModal>
+      </s-page>
+    </>
   );
 }
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

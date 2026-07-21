@@ -1,15 +1,22 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  Tag,
-  InlineStack,
-  BlockStack,
-  ChoiceList,
-  Card,
-  Text,
-  Box,
-  Button,
-  Thumbnail,
-} from "@shopify/polaris";
+
+const Chip = ({ children, onRemove }) => {
+  const ref = useRef(null);
+  
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !onRemove) return;
+    const handler = () => onRemove();
+    el.addEventListener("remove", handler);
+    return () => el.removeEventListener("remove", handler);
+  }, [onRemove]);
+
+  return (
+    <s-clickable-chip ref={ref} removable={!!onRemove}>
+      {children}
+    </s-clickable-chip>
+  );
+};
 
 const MultiSelectField = ({
   label,
@@ -21,158 +28,102 @@ const MultiSelectField = ({
   loading = false,
 }) => {
   const [inputValue, setInputValue] = useState("");
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  const filtered = options.filter(
-    (o) =>
-      !selected.includes(o) &&
-      o.toLowerCase().includes(inputValue.toLowerCase()),
-  );
+  const [autocompleteOptions, setAutocompleteOptions] = useState([]);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    setAutocompleteOptions(options.map((opt) => ({ value: opt, label: opt })));
+  }, [options]);
 
-  const handleSelect = (item) => {
-    if (!selected.includes(item)) onAdd(item);
+  const updateText = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    if (value === "") {
+      setAutocompleteOptions(
+        options.map((opt) => ({ value: opt, label: opt }))
+      );
+      return;
+    }
+    const filtered = options
+      .filter((opt) => opt.toLowerCase().includes(value.toLowerCase()))
+      .map((opt) => ({ value: opt, label: opt }));
+    setAutocompleteOptions(filtered);
+  };
+
+  const handleSelect = (val) => {
+    if (!selected.includes(val)) onAdd(val);
     setInputValue("");
+    setIsFocused(false);
   };
 
   return (
-    <BlockStack gap="200">
-      <div ref={containerRef} style={{ position: "relative" }}>
-        <Text as="p" variant="bodyMd" fontWeight="medium">
-          {label}
-        </Text>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            border: "1px solid #8c9196",
-            borderRadius: "8px",
-            padding: "8px 12px",
-            background: "#fff",
-            cursor: "text",
-            gap: "8px",
-            marginTop: "4px",
-          }}
-          onClick={() => {
-            if (!loading) setOpen(true);
-          }}
+    <s-stack direction="block" gap="small-200">
+      <div style={{ position: "relative" }}>
+        <s-text-field
+          label={label}
+          value={inputValue}
+          onInput={updateText}
+          placeholder={loading ? "Loading..." : placeholder}
+          autoComplete="off"
+          disabled={loading}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setTimeout(() => setIsFocused(false), 200)}
         >
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              setOpen(true);
-            }}
-            onFocus={() => {
-              if (!loading) setOpen(true);
-            }}
-            placeholder={loading ? "Loading..." : placeholder}
-            disabled={loading}
-            style={{
-              border: "none",
-              outline: "none",
-              flex: 1,
-              fontSize: "14px",
-              color: "#202223",
-              background: "transparent",
-            }}
-          />
-          {loading && (
-            <div
-              style={{
-                width: "16px",
-                height: "16px",
-                border: "2px solid #8c9196",
-                borderTopColor: "#202223",
-                borderRadius: "50%",
-                animation: "spin 0.6s linear infinite",
-              }}
-            />
-          )}
-        </div>
+          <s-icon slot="prefix" source="search"></s-icon>
+        </s-text-field>
 
-        {open && !loading && (
+        {isFocused && autocompleteOptions.length > 0 && (
           <div
             style={{
               position: "absolute",
-              top: "calc(100% + 4px)",
+              top: "100%",
               left: 0,
               right: 0,
-              background: "#fff",
-              border: "1px solid #8c9196",
-              borderRadius: "8px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              zIndex: 9999,
-              maxHeight: "220px",
+              background: "white",
+              border: "1px solid #c9cccf",
+              borderRadius: "4px",
+              zIndex: 10,
+              maxHeight: "200px",
               overflowY: "auto",
+              marginTop: "4px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
             }}
           >
-            {filtered.length > 0 ? (
-              filtered.map((item) => (
-                <div
-                  key={item}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSelect(item);
-                  }}
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {autocompleteOptions.map((opt) => (
+                <li
+                  key={opt.value}
+                  onClick={() => handleSelect(opt.value)}
                   style={{
-                    padding: "10px 14px",
-                    fontSize: "14px",
+                    padding: "8px 12px",
                     cursor: "pointer",
-                    color: "#202223",
-                    borderBottom: "1px solid #f1f1f1",
+                    borderBottom: "1px solid #eee",
                   }}
                   onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "#f6f6f7")
+                    (e.currentTarget.style.backgroundColor = "#f6f6f6")
                   }
                   onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "#fff")
+                    (e.currentTarget.style.backgroundColor = "transparent")
                   }
                 >
-                  {item}
-                </div>
-              ))
-            ) : (
-              <div
-                style={{
-                  padding: "10px 14px",
-                  fontSize: "14px",
-                  color: "#6d7175",
-                }}
-              >
-                {inputValue
-                  ? `No results for "${inputValue}"`
-                  : "All options selected"}
-              </div>
-            )}
+                  <s-text>{opt.label}</s-text>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
 
       {selected.length > 0 && (
-        <InlineStack gap="100" wrap>
+        <s-stack direction="inline" gap="small-100">
           {selected.map((item) => (
-            <Tag key={item} onRemove={() => onRemove(item)}>
+            <Chip key={item} onRemove={() => onRemove(item)}>
               {item}
-            </Tag>
+            </Chip>
           ))}
-        </InlineStack>
+        </s-stack>
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </BlockStack>
+    </s-stack>
   );
 };
 
@@ -187,23 +138,23 @@ const CollectionChipField = ({ selected, onAdd, onRemove }) => {
   };
 
   return (
-    <BlockStack gap="200">
-      <Text as="p" variant="bodyMd" fontWeight="medium">
+    <s-stack direction="block" gap="small-200">
+      <s-text as="p" variant="bodyMd" fontWeight="medium">
         Collections
-      </Text>
-      <Box>
-        <Button onClick={openPicker}>Select Collections</Button>
-      </Box>
+      </s-text>
+      <s-box>
+        <s-button onClick={openPicker}>Select Collections</s-button>
+      </s-box>
       {selected.length > 0 && (
-        <InlineStack gap="100" wrap>
+        <s-stack direction="inline" gap="small-100">
           {selected.map((c) => (
-            <Tag key={c.id} onRemove={() => onRemove(c.id)}>
+            <Chip key={c.id} onRemove={() => onRemove(c.id)}>
               {c.title}
-            </Tag>
+            </Chip>
           ))}
-        </InlineStack>
+        </s-stack>
       )}
-    </BlockStack>
+    </s-stack>
   );
 };
 
@@ -281,110 +232,122 @@ const UpsellTrigger = ({
     applyTo === "excludeProducts" ? excludedProducts : selectedProducts;
 
   return (
-    <Card padding="500">
-      <BlockStack gap="500">
-        <Text as="h2" variant="headingMd">
-          Offers
-        </Text>
+    <s-box background="surface" borderRadius="300" shadow="100" padding="large">
+        <s-stack direction="block" gap="large">
+          <s-text as="h2" variant="headingMd">
+            Offers
+          </s-text>
 
-        <ChoiceList
-          title="Apply To"
-          choices={APPLY_TO_CHOICES}
-          selected={[applyTo]}
-          onChange={(value) => setApplyTo(value[0])}
-        />
+          {/* ChoiceList web component needs onChange binding for an array. 
+              According to standard web components, choice-list returns array of values on change. */}
+          <s-choice-list
+            title="Apply To"
+            onChange={(e) => setApplyTo(e.target.value[0])}
+          >
+            {APPLY_TO_CHOICES.map((choice) => (
+              <s-checkbox 
+                key={choice.value}
+                label={choice.label} 
+                value={choice.value}
+                checked={applyTo === choice.value}
+                onInput={(e) => {
+                  if (e.target.checked) setApplyTo(choice.value);
+                }}
+              />
+            ))}
+          </s-choice-list>
 
-        {isVendorTypeCollection && (
-          <BlockStack gap="400">
-            <MultiSelectField
-              label="Types"
-              placeholder="Search and select types..."
-              options={availableTypes}
-              selected={selectedTypes}
-              loading={filtersLoading}
-              onAdd={(t) => setSelectedTypes((prev) => [...prev, t])}
-              onRemove={(t) =>
-                setSelectedTypes((prev) => prev.filter((x) => x !== t))
-              }
-            />
+          {isVendorTypeCollection && (
+            <s-stack direction="block" gap="base">
+              <MultiSelectField
+                label="Types"
+                placeholder="Search and select types..."
+                options={availableTypes}
+                selected={selectedTypes}
+                loading={filtersLoading}
+                onAdd={(t) => setSelectedTypes((prev) => [...prev, t])}
+                onRemove={(t) =>
+                  setSelectedTypes((prev) => prev.filter((x) => x !== t))
+                }
+              />
 
-            <MultiSelectField
-              label="Vendors"
-              placeholder="Search and select vendors..."
-              options={availableVendors}
-              selected={selectedVendors}
-              loading={filtersLoading}
-              onAdd={(v) => setSelectedVendors((prev) => [...prev, v])}
-              onRemove={(v) =>
-                setSelectedVendors((prev) => prev.filter((x) => x !== v))
-              }
-            />
+              <MultiSelectField
+                label="Vendors"
+                placeholder="Search and select vendors..."
+                options={availableVendors}
+                selected={selectedVendors}
+                loading={filtersLoading}
+                onAdd={(v) => setSelectedVendors((prev) => [...prev, v])}
+                onRemove={(v) =>
+                  setSelectedVendors((prev) => prev.filter((x) => x !== v))
+                }
+              />
 
-            <CollectionChipField
-              selected={selectedCollections}
-              onAdd={(c) =>
-                setSelectedCollections((prev) =>
-                  prev.find((x) => x.id === c.id) ? prev : [...prev, c],
-                )
-              }
-              onRemove={(id) =>
-                setSelectedCollections((prev) =>
-                  prev.filter((x) => x.id !== id),
-                )
-              }
-            />
-          </BlockStack>
-        )}
+              <CollectionChipField
+                selected={selectedCollections}
+                onAdd={(c) =>
+                  setSelectedCollections((prev) =>
+                    prev.find((x) => x.id === c.id) ? prev : [...prev, c],
+                  )
+                }
+                onRemove={(id) =>
+                  setSelectedCollections((prev) =>
+                    prev.filter((x) => x.id !== id),
+                  )
+                }
+              />
+            </s-stack>
+          )}
 
-        {(applyTo === "excludeProducts" || applyTo === "selectedProducts") && (
-          <Box paddingBlockStart="400">
-            <Button onClick={openProductPicker}>
-              {applyTo === "excludeProducts"
-                ? "Select Products to Exclude"
-                : "Select Products"}
-            </Button>
+          {(applyTo === "excludeProducts" || applyTo === "selectedProducts") && (
+            <s-box paddingBlockStart="base">
+              <s-button onClick={openProductPicker}>
+                {applyTo === "excludeProducts"
+                  ? "Select Products to Exclude"
+                  : "Select Products"}
+              </s-button>
 
-            {displayProducts?.length > 0 && (
-              <Box paddingBlockStart="400">
-                <BlockStack gap="200">
-                  {displayProducts.map((product) => (
-                    <Card key={product.id} padding="300">
-                      <InlineStack
-                        align="space-between"
-                        blockAlign="center"
-                        wrap={false}
-                        gap="300"
-                      >
-                        <InlineStack blockAlign="center" gap="300" wrap={false}>
-                          <Thumbnail
-                            source={
-                              product.images?.[0]?.originalSrc ||
-                              "https://cdn.shopify.com/s/files/1/0757/9955/files/placeholder-images-image_large.png"
-                            }
-                            size="small"
-                            alt={product.title}
-                          />
-                          <Text as="span" variant="bodyMd">
-                            {product.title}
-                          </Text>
-                        </InlineStack>
-                        <Button
-                          tone="critical"
-                          variant="plain"
-                          onClick={() => removeProduct(product.id)}
-                        >
-                          Remove
-                        </Button>
-                      </InlineStack>
-                    </Card>
-                  ))}
-                </BlockStack>
-              </Box>
-            )}
-          </Box>
-        )}
-      </BlockStack>
-    </Card>
+              {displayProducts?.length > 0 && (
+                <s-box paddingBlockStart="base">
+                  <s-stack direction="block" gap="small-200">
+                    {displayProducts.map((product) => (
+                        <s-box key={product.id} background="surface" borderRadius="300" shadow="100" padding="base">
+                          <s-stack
+                            direction="inline"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            gap="base"
+                          >
+                            <s-stack direction="inline" alignItems="center" gap="base">
+                              <s-thumbnail
+                                source={
+                                  product.images?.[0]?.originalSrc ||
+                                  "https://cdn.shopify.com/s/files/1/0757/9955/files/placeholder-images-image_large.png"
+                                }
+                                size="small"
+                                alt={product.title}
+                              />
+                              <s-text as="span" variant="bodyMd">
+                                {product.title}
+                              </s-text>
+                            </s-stack>
+                            <s-button
+                              tone="critical"
+                              variant="plain"
+                              onClick={() => removeProduct(product.id)}
+                            >
+                              Remove
+                            </s-button>
+                          </s-stack>
+                        </s-box>
+                    ))}
+                  </s-stack>
+                </s-box>
+              )}
+            </s-box>
+          )}
+        </s-stack>
+      </s-box>
   );
 };
 

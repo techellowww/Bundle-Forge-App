@@ -1,91 +1,107 @@
-import {
-  Modal,
-  Card,
-  Text,
-  Button,
-  BlockStack,
-  InlineStack,
-  Box,
-  Icon,
-} from "@shopify/polaris";
-
-import {
-  DiscountIcon,
-  ProductIcon,
-  GiftCardIcon,
-} from "@shopify/polaris-icons";
-
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 
-export default function CreateOfferModal({ open, onClose }) {
+export default function CreateOfferModal() {
   const navigate = useNavigate();
+  const buttonRefs = useRef([]);
 
   const offers = [
     {
       title: "Quantity Break",
       description: "Offer tiered discounts based on purchased quantity.",
-      icon: DiscountIcon,
+      icon: "discount",
       route: "/app/quantityBreak",
     },
     {
       title: "Fixed Bundle",
       description: "Sell multiple products together as a bundle.",
-      icon: ProductIcon,
+      icon: "product",
       route: "/app/fixed-bundle",
     },
     {
       title: "Buy X Get Y",
       description: "Reward customers with free or discounted products.",
-      icon: GiftCardIcon,
+      icon: "gift-card",
       route: "/app/buyXgetY",
     },
   ];
 
+  useEffect(() => {
+    // Attach native DOM event listeners because React Synthetic Events 
+    // are blocked when Shopify App Bridge extracts the ui-modal.
+    const handlers = buttonRefs.current.map((btn, index) => {
+      if (!btn) return null;
+      
+      const handler = (e) => {
+        e.preventDefault();
+        shopify.modal.hide('create-offer-modal');
+        navigate(offers[index].route);
+      };
+      
+      btn.addEventListener('click', handler);
+      return { btn, handler };
+    });
+
+    return () => {
+      handlers.forEach((item) => {
+        if (item) item.btn.removeEventListener('click', item.handler);
+      });
+    };
+  }, [navigate]);
+
   return (
-    <Modal open={open} onClose={onClose} title="Choose offer type" size="large">
-      <Modal.Section>
-        <BlockStack gap="500">
-          <Text alignment="center" variant="headingLg" as="h2">
+    <ui-modal id="create-offer-modal" variant="base">
+      <ui-title-bar title="Choose offer type">
+        <button variant="primary" onClick={() => shopify.modal.hide('create-offer-modal')}>
+          Close
+        </button>
+      </ui-title-bar>
+      
+      <s-box padding="large">
+        <s-stack direction="block" gap="large">
+          <s-text alignment="center" variant="headingLg" as="h2">
             Choose an offer type to begin
-          </Text>
+          </s-text>
 
-          {offers.map((offer) => (
-            <Card key={offer.title}>
-              <InlineStack align="space-between" blockAlign="center">
-                <InlineStack gap="400" blockAlign="center">
-                  <Box
-                    background="bg-surface-secondary"
-                    padding="400"
-                    borderRadius="300"
+          {offers.map((offer, index) => (
+            <s-box 
+              key={offer.title} 
+              padding="base" 
+              background="base" 
+              borderRadius="base"
+              border="base subdued solid"
+            >
+              <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                <s-stack direction="inline" gap="base" alignItems="center">
+                  <s-box
+                    background="subdued"
+                    padding="base"
+                    borderRadius="base"
                   >
-                    <Icon source={offer.icon} />
-                  </Box>
+                    <s-icon source={offer.icon}></s-icon>
+                  </s-box>
 
-                  <BlockStack gap="100">
-                    <Text as="h3" variant="headingMd">
+                  <s-stack direction="block" gap="small-200">
+                    <s-text as="h3" variant="headingMd">
                       {offer.title}
-                    </Text>
-
-                    <Text as="p" tone="subdued">
+                    </s-text>
+                    <s-text as="p" tone="subdued">
                       {offer.description}
-                    </Text>
-                  </BlockStack>
-                </InlineStack>
+                    </s-text>
+                  </s-stack>
+                </s-stack>
 
-                <Button
+                <s-button 
                   variant="primary"
-                  onClick={() => {
-                    onClose();
-                    navigate(offer.route);
-                  }}
+                  ref={(el) => (buttonRefs.current[index] = el)}
                 >
                   Start
-                </Button>
-              </InlineStack>
-            </Card>
+                </s-button>
+              </s-stack>
+            </s-box>
           ))}
-        </BlockStack>
-      </Modal.Section>
-    </Modal>
+        </s-stack>
+      </s-box>
+    </ui-modal>
   );
 }
