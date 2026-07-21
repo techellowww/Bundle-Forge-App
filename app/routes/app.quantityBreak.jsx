@@ -2,7 +2,11 @@ import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { useLoaderData, useRouteError, useNavigate } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+<<<<<<< HEAD
 
+=======
+import { Page } from "@shopify/polaris";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 import QuantityBreak from "../components/QuantityBreak/QuantityBreak";
 
 export async function loader({ request }) {
@@ -32,9 +36,18 @@ export default function QuantityBreakPage() {
   const navigate = useNavigate();
 
   return (
+<<<<<<< HEAD
     <>
       <QuantityBreak offer={offer} />
     </>
+=======
+    <Page 
+      backAction={{ content: 'Quantity Breaks', onAction: () => navigate('/app/quantity-breaks') }}
+      title={offer ? "Edit Quantity Break" : "Create Quantity Break"}
+    >
+      <QuantityBreak offer={offer} />
+    </Page>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 }
 

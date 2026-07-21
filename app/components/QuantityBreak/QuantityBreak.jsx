@@ -415,6 +415,7 @@ const QuantityBreak = ({ offer }) => {
   };
 
   return (
+<<<<<<< HEAD
     <>
     <ui-title-bar title={isEditing ? "Edit Quantity Break" : "Create Quantity Break"}>
       <button variant="breadcrumb" onClick={() => navigate('/app')}>
@@ -425,6 +426,25 @@ const QuantityBreak = ({ offer }) => {
       </button>
     </ui-title-bar>
     <s-page>
+=======
+    <div>
+      <s-grid gridTemplateColumns="2fr 1fr" gap="large">
+        <s-stack direction="block" gap="large">
+          <s-section>
+            <BasicInfo
+              title={title}
+              setTitle={setTitle}
+              discountTitle={discountTitle}
+              setDiscountTitle={setDiscountTitle}
+              discountDescription={discountDescription}
+              setDiscountDescription={setDiscountDescription}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+            />
+          </s-section>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
       <style>{`
         .offer-layout-grid {
@@ -526,6 +546,7 @@ const QuantityBreak = ({ offer }) => {
 </s-choice-list>
   
 
+<<<<<<< HEAD
                 {isVendorTypeCollection && (
                   <div style={{ display: "flex", flexDirection: "column", gap: "var(--p-space-400, 16px)" }}>
                     <MultiSelectField
@@ -838,6 +859,23 @@ const QuantityBreak = ({ offer }) => {
       </div>
     </s-page>
     </>
+=======
+          <s-section>
+            <QuantityBreakcart
+              discountTitle={discountTitle}
+              discountDescription={discountDescription}
+              tiers={tiers}
+              selectedProducts={selectedProducts}
+              saveOffer={saveOffer}
+            />
+          </s-section>
+        </s-stack>
+        <s-button variant="primary" onClick={saveOffer}>
+          {isEditing ? "Update Offer" : "Save Offer"}
+        </s-button>
+      </s-grid>
+    </div>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 };
 

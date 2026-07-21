@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useFetcher } from "react-router";
+<<<<<<< HEAD
 
 
 const Chip = ({ children, onRemove }) => {
@@ -177,6 +178,21 @@ const APPLY_TO_CHOICES = [
     value: "productsInSelectedVendorTypeCollection",
   },
 ];
+=======
+import {
+  Page,
+  Layout,
+  Card,
+  BlockStack,
+  Text,
+  List,
+  Box,
+  Button,
+} from "@shopify/polaris";
+import OfferInfo from "./OfferInfo";
+import OfferMain from "./OfferMain";
+import GiftSection from "./GiftSection";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
 const BuyXGetY = ({ offer = null }) => {
   const navigate = useNavigate();
@@ -455,6 +471,7 @@ const BuyXGetY = ({ offer = null }) => {
     }
   }, [fetcher.data, fetcher.state, navigate, isEditing]);
 
+<<<<<<< HEAD
   const statusOptions = [
     { label: "Active", value: "active" },
     { label: "Inactive", value: "inactive" },
@@ -545,6 +562,16 @@ const BuyXGetY = ({ offer = null }) => {
       checked={applyTo === choice.value}
       onInput={(e) => {
         if (e.target.checked) setApplyTo(choice.value);
+=======
+  return (
+    <Page
+      title={isEditing ? "Edit BXGY Offer" : "Create BXGY Offer"}
+      backAction={{ onAction: () => navigate("/app/bxgy-list") }}
+      primaryAction={{
+        content: isEditing ? "Update Offer" : "Save Offer",
+        onAction: saveOffer,
+        loading: fetcher.state === "submitting",
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
       }}
     />
   ))}
@@ -899,6 +926,7 @@ const BuyXGetY = ({ offer = null }) => {
                 </li>
                 <li>
                   {selectedProducts.length} products selected
+<<<<<<< HEAD
                 </li>
                 <li>{selectedVendors.length} vendors</li>
                 <li>{selectedCollections.length} collections</li>
@@ -911,6 +939,24 @@ const BuyXGetY = ({ offer = null }) => {
       </div>
     </s-page>
     </>
+=======
+                </List.Item>
+                <List.Item>{selectedVendors.length} vendors</List.Item>
+                <List.Item>{selectedCollections.length} collections</List.Item>
+                <List.Item>{startDate || "No start date"}</List.Item>
+              </List>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+      </Layout>
+
+      <Box paddingBlockStart="400">
+        <Button variant="primary" onClick={saveOffer} loading={fetcher.state === "submitting"}>
+          {isEditing ? "Update Offer" : "Save Offer"}
+        </Button>
+      </Box>
+    </Page>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 };
 

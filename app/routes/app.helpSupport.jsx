@@ -1,17 +1,50 @@
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useRouteError, useNavigate } from "react-router";
+<<<<<<< HEAD
 import { useState } from "react";
 // import CreateOfferModal from "../components/CreateOfferModal";
+=======
+import {
+  Card,
+  Page,
+  Layout,
+  Button,
+  Icon,
+  Text,
+  BlockStack,
+  InlineStack,
+  Box,
+  Collapsible,
+  List,
+  Divider,
+} from "@shopify/polaris";
+import {
+  ChatIcon,
+  PlayCircleIcon,
+  EnvelopeIcon,
+  ArrowRightIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+} from "@shopify/polaris-icons";
+import { useState } from "react";
+import CreateOfferModal from "../components/CreateOfferModal";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
   return null;
 };
 
+<<<<<<< HEAD
 function SupportCard({ iconType, title, description, onClick }) {
   return (
     <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">
+=======
+function SupportCard({ icon, title, description, onClick }) {
+  return (
+    <Card padding="500">
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
       <div
         onClick={onClick}
         onKeyDown={(e) => {
@@ -23,6 +56,7 @@ function SupportCard({ iconType, title, description, onClick }) {
         tabIndex={0}
         style={{ cursor: "pointer", outline: "none" }}
       >
+<<<<<<< HEAD
         <s-stack direction="inline" justifyContent="space-between" alignItems="center">
           <s-stack direction="inline" gap="300" alignItems="start">
             {iconType && (
@@ -57,6 +91,43 @@ function SupportCard({ iconType, title, description, onClick }) {
 
 export default function HelpSupport() {
   const navigate = useNavigate();
+=======
+        <InlineStack align="space-between" blockAlign="center">
+          <InlineStack gap="300" blockAlign="start">
+            {icon && (
+              <Box minWidth="32px" paddingBlockStart="050">
+                <InlineStack blockAlign="center" align="center">
+                  <Icon source={icon} />
+                </InlineStack>
+              </Box>
+            )}
+
+            <BlockStack gap="200">
+              <Text as="h3" variant="headingSm">
+                {title}
+              </Text>
+
+              <Text as="p" variant="bodySm" tone="subdued">
+                {description}
+              </Text>
+            </BlockStack>
+          </InlineStack>
+
+          <Box>
+            <InlineStack blockAlign="center">
+              <Icon source={ArrowRightIcon} tone="subdued" />
+            </InlineStack>
+          </Box>
+        </InlineStack>
+      </div>
+    </Card>
+  );
+}
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  // const [openModal, setOpenModal] = useState(false);
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
   const handleFaqToggle = (index) => {
@@ -65,28 +136,44 @@ export default function HelpSupport() {
 
   const supportItems = [
     {
+<<<<<<< HEAD
       iconType: "chat",
+=======
+      icon: ChatIcon,
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
       title: "Get Live Chat support",
       description:
         "Get support from our highly-skilled support team. We are only a message away!",
       onClick: () => window.open("https://your-live-chat-url.com", "_blank"),
     },
     {
+<<<<<<< HEAD
       iconType: "play-circle",
+=======
+      icon: PlayCircleIcon,
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
       title: "View FAQs",
       description:
         "View our Frequently Asked Questions and learn more about Bundle Forge functionality.",
       onClick: () => window.open("https://your-faq-url.com", "_blank"),
     },
     {
+<<<<<<< HEAD
       iconType: "play-circle",
+=======
+      icon: PlayCircleIcon,
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
       title: "Watch our YouTube series",
       description:
         "Watch all the step-by-step guides for the app in our YouTube series.",
       onClick: () => window.open("https://youtube.com/your-channel", "_blank"),
     },
     {
+<<<<<<< HEAD
       iconType: "envelope",
+=======
+      icon: EnvelopeIcon,
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
       title: "Contact via email",
       description:
         "Send us an email at tech@ellowww.com for further assistance.",
@@ -168,6 +255,7 @@ export default function HelpSupport() {
   ];
 
   return (
+<<<<<<< HEAD
     <s-page heading="Help & Support">
       <ui-title-bar title="Help & Support">
         <button variant="breadcrumb" onClick={() => navigate('/app')}>Dashboard</button>
@@ -182,6 +270,19 @@ export default function HelpSupport() {
               </s-text>
 
               <s-box
+=======
+    <Page backAction={{ content: 'Dashboard', onAction: () => navigate('/app') }}>
+      <BlockStack gap="600">
+        <Layout>
+          {/* Support */}
+          <Layout.Section>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Get support
+              </Text>
+
+              <Box
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
@@ -191,6 +292,7 @@ export default function HelpSupport() {
                 {supportItems.map((item, index) => (
                   <SupportCard key={index} {...item} />
                 ))}
+<<<<<<< HEAD
               </s-box>
             </s-stack>
           </s-box>
@@ -303,6 +405,124 @@ export default function HelpSupport() {
         </s-section>
       </s-stack>
     </s-page>
+=======
+              </Box>
+            </BlockStack>
+          </Layout.Section>
+        </Layout>
+      </BlockStack>
+
+      <Layout.Section>
+        <Card roundedAbove="sm" padding="0">
+          <BlockStack gap="0">
+            <Box
+              paddingBlock="600"
+              paddingInline="600"
+              borderBlockEndWidth="025"
+              borderColor="border"
+            >
+              <BlockStack gap="100">
+                <Text as="h2" variant="headingMd">
+                  Frequently asked questions
+                </Text>
+
+                <Text as="p" tone="subdued">
+                  Learn how to configure Bundle Forge and troubleshoot common
+                  questions.
+                </Text>
+              </BlockStack>
+            </Box>
+
+            {faq.map((item, index) => {
+              const isOpen = openFaqIndex === index;
+
+              return (
+                <Box key={index}>
+                  <button
+                    type="button"
+                    onClick={() => handleFaqToggle(index)}
+                    style={{
+                      width: "100%",
+                      border: 0,
+                      cursor: "pointer",
+                      background: isOpen ? "#F6F6F7" : "transparent",
+                      padding: 0,
+                      textAlign: "left",
+                    }}
+                  >
+                    <Box
+  paddingBlock="500"
+  paddingInline="600"
+>
+                      <InlineStack
+                        align="space-between"
+                        blockAlign="center"
+                        wrap={false}
+                      >
+                        <Box width="100%">
+                          <Text as="h3" variant="headingSm">
+                            {item.question}
+                          </Text>
+                        </Box>
+
+                        <Box>
+                          <Icon
+                            source={isOpen ? ChevronUpIcon : ChevronDownIcon}
+                            tone="subdued"
+                          />
+                        </Box>
+                      </InlineStack>
+                    </Box>
+                  </button>
+
+                  <Collapsible open={isOpen}>
+                    <Box paddingInline="500" paddingBlockEnd="500">
+                      <BlockStack gap="400">
+                        {item.answer && (
+                          <Text as="p" tone="subdued">
+                            {item.answer}
+                          </Text>
+                        )}
+
+                        {item.steps && (
+                          <List type="number">
+                            {item.steps.map((step, i) => (
+                              <List.Item key={i}>{step}</List.Item>
+                            ))}
+                          </List>
+                        )}
+
+                        {item.answerSecondary && (
+                          <>
+                            <Divider />
+                            <Text as="p" tone="subdued">
+                              {item.answerSecondary}
+                            </Text>
+                          </>
+                        )}
+
+                        {item.stepsSecondary && (
+                          <List type="number">
+                            {item.stepsSecondary.map((step, i) => (
+                              <List.Item key={i}>{step}</List.Item>
+                            ))}
+                          </List>
+                        )}
+                      </BlockStack>
+                    </Box>
+                  </Collapsible>
+
+                  {index !== faq.length - 1 && <Divider />}
+                </Box>
+              );
+            })}
+          </BlockStack>
+        </Card>
+      </Layout.Section>
+
+      {/* <CreateOfferModal open={openModal} onClose={() => setOpenModal(false)} /> */}
+    </Page>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 }
 
@@ -312,4 +532,8 @@ export function ErrorBoundary() {
 
 export const headers = (headersArgs) => {
   return boundary.headers(headersArgs);
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be

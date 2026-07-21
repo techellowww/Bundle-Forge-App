@@ -150,6 +150,32 @@ const FixedBundle = ({ offer }) => {
 
   return (
     <s-page>
+<<<<<<< HEAD
+=======
+      <s-grid gridTemplateColumns="2fr 1fr" gap="large">
+        <s-stack direction="block" gap="large">
+          <BundleOffer
+            title={title}
+            setTitle={setTitle}
+            status={status}
+            setStatus={setStatus}
+            description={description}
+            setDescription={setDescription}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            selectProducts={selectProducts}
+            setSelectProducts={setSelectProducts}
+            offerPercentage={offerPercentage}
+            setOfferPercentage={setOfferPercentage}
+            requireMinQty={requireMinQty}
+            setRequireMinQty={setRequireMinQty}
+            minQuantity={minQuantity}
+            setMinQuantity={setMinQuantity}
+          />
+        </s-stack>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
       <style>{`
         .offer-layout-grid {

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 
+=======
+import { Page, Layout } from "@shopify/polaris";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 import { useLoaderData, useRouteError, useNavigate } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
@@ -51,8 +55,17 @@ export default function BuyXGetYPage() {
   const navigate = useNavigate();
 
   return (
+<<<<<<< HEAD
     <>
       
+=======
+    <Page 
+      backAction={{ content: 'Buy X Get Y', onAction: () => navigate('/app/bxgy-list') }}
+      title={offer ? "Edit Buy X Get Y Offer" : "Create Buy X Get Y Offer"}
+    >
+      <Layout>
+        <Layout.Section>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
           <BuyXGetY offer={offer} />
         
     </>

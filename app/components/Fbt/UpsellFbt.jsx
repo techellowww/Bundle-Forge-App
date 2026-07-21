@@ -471,6 +471,7 @@ export default function UpsellFbt({ offer }) {
     { label: "Inactive", value: "inactive" },
   ];
 
+<<<<<<< HEAD
   return (<>
     <ui-title-bar title={isEditing ? "Edit FBT Offer" : "Create FBT Offer"}>
       <button variant="breadcrumb" onClick={() => navigate('/app/fbt-list')}>
@@ -481,6 +482,73 @@ export default function UpsellFbt({ offer }) {
       </button>
     </ui-title-bar>
     <s-page>
+=======
+  return (
+    <Page
+      title={isEditing ? "Edit FBT Offer" : "Create FBT Offer"}
+      backAction={{ content: 'Frequently Bought Together', onAction: () => navigate('/app/fbt-list') }}
+      primaryAction={{
+        content: saving ? "Saving…" : isEditing ? "Update Offer" : "Save Offer",
+        onAction: saveOffer,
+        loading: saving,
+      }}
+      secondaryActions={[
+        {
+          content: "Cancel",
+          onAction: () => navigate("/app/fbt-list"),
+        },
+      ]}
+    >
+      <Layout>
+        <Layout.Section>
+          <BlockStack gap="400">
+            <UpsellInfo
+              title={title}
+              setTitle={setTitle}
+              discountTitle={discountTitle}
+              setDiscountTitle={setDiscountTitle}
+              discountDescription={discountDescription}
+              setDiscountDescription={setDiscountDescription}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+            />
+            <UpsellTrigger
+              applyTo={applyTo}
+              setApplyTo={setApplyTo}
+              selectedProducts={selectedProducts}
+              setSelectedProducts={setSelectedProducts}
+              excludedProducts={excludedProducts}
+              setExcludedProducts={setExcludedProducts}
+              selectedVendors={selectedVendors}
+              setSelectedVendors={setSelectedVendors}
+              selectedTypes={selectedTypes}
+              setSelectedTypes={setSelectedTypes}
+              selectedCollections={selectedCollections}
+              setSelectedCollections={setSelectedCollections}
+            />
+            <Method
+              selectedGiftMode={selectedGiftMode}
+              setSelectedGiftMode={setSelectedGiftMode}
+              bundledProducts={bundledProducts}
+              setBundledProducts={setBundledProducts}
+              randomCount={randomCount}
+              setRandomCount={setRandomCount}
+              randomSourceType={randomSourceType}
+              setRandomSourceType={setRandomSourceType}
+              randomSourceValue={randomSourceValue}
+              setRandomSourceValue={setRandomSourceValue}
+            />
+            <Discount
+              discountType={discountType}
+              setDiscountType={setDiscountType}
+              discountValue={discountValue}
+              setDiscountValue={setDiscountValue}
+            />
+          </BlockStack>
+        </Layout.Section>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
       <style>{`
         .offer-layout-grid {

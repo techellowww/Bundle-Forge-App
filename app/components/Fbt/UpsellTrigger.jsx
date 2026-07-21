@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+<<<<<<< HEAD
 
 const Chip = ({ children, onRemove }) => {
   const ref = useRef(null);
@@ -17,6 +18,22 @@ const Chip = ({ children, onRemove }) => {
     </s-clickable-chip>
   );
 };
+=======
+import {
+  Tag,
+  InlineStack,
+  BlockStack,
+  ChoiceList,
+  Card,
+  Text,
+  Box,
+  Button,
+  Thumbnail,
+  Autocomplete,
+  Icon,
+} from "@shopify/polaris";
+import { SearchIcon } from "@shopify/polaris-icons";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
 const MultiSelectField = ({
   label,
@@ -29,6 +46,7 @@ const MultiSelectField = ({
 }) => {
   const [inputValue, setInputValue] = useState("");
   const [autocompleteOptions, setAutocompleteOptions] = useState([]);
+<<<<<<< HEAD
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
@@ -37,6 +55,15 @@ const MultiSelectField = ({
 
   const updateText = (e) => {
     const value = e.target.value;
+=======
+
+  useEffect(() => {
+    const formatted = options.map((opt) => ({ value: opt, label: opt }));
+    setAutocompleteOptions(formatted);
+  }, [options]);
+
+  const updateText = (value) => {
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
     setInputValue(value);
     if (value === "") {
       setAutocompleteOptions(
@@ -48,15 +75,31 @@ const MultiSelectField = ({
       .filter((opt) => opt.toLowerCase().includes(value.toLowerCase()))
       .map((opt) => ({ value: opt, label: opt }));
     setAutocompleteOptions(filtered);
+<<<<<<< HEAD
   };
 
   const handleSelect = (val) => {
     if (!selected.includes(val)) onAdd(val);
     setInputValue("");
     setIsFocused(false);
+=======
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   };
 
+  const textField = (
+    <Autocomplete.TextField
+      onChange={updateText}
+      label={label}
+      value={inputValue}
+      placeholder={loading ? "Loading..." : placeholder}
+      autoComplete="off"
+      disabled={loading}
+      prefix={<Icon source={SearchIcon} tone="base" />}
+    />
+  );
+
   return (
+<<<<<<< HEAD
     <s-stack direction="block" gap="small-200">
       <div style={{ position: "relative" }}>
         <s-text-field
@@ -113,6 +156,24 @@ const MultiSelectField = ({
           </div>
         )}
       </div>
+=======
+    <BlockStack gap="200">
+      <Autocomplete
+        allowMultiple
+        options={autocompleteOptions}
+        selected={selected}
+        textField={textField}
+        onSelect={(selectedArr) => {
+          const added = selectedArr.find((s) => !selected.includes(s));
+          if (added) onAdd(added);
+
+          const removed = selected.find((s) => !selectedArr.includes(s));
+          if (removed) onRemove(removed);
+
+          setInputValue("");
+        }}
+      />
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
       {selected.length > 0 && (
         <s-stack direction="inline" gap="small-100">
@@ -123,7 +184,11 @@ const MultiSelectField = ({
           ))}
         </s-stack>
       )}
+<<<<<<< HEAD
     </s-stack>
+=======
+    </BlockStack>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 };
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Form, useActionData, useLoaderData } from "react-router";
 import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
+import { Page, Card, TextField, Button, BlockStack } from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
   const errors = loginErrorMessage(await login(request));
@@ -26,6 +27,7 @@ export default function Auth() {
 
   return (
     <AppProvider embedded={false}>
+<<<<<<< HEAD
       <s-page>
         <div style={{ maxWidth: '400px', margin: '40px auto' }}>
           <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">
@@ -49,6 +51,26 @@ export default function Auth() {
           </s-box>
         </div>
       </s-page>
+=======
+      <Page>
+        <Card>
+          <Form method="post">
+            <BlockStack gap="400">
+              <TextField
+                name="shop"
+                label="Shop domain"
+                helpText="example.myshopify.com"
+                value={shop}
+                onChange={(value) => setShop(value)}
+                autoComplete="on"
+                error={errors.shop}
+              />
+              <Button submit variant="primary">Log in</Button>
+            </BlockStack>
+          </Form>
+        </Card>
+      </Page>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
     </AppProvider>
   );
 }

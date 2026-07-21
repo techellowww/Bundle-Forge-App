@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 
+=======
+import { Page, Layout } from "@shopify/polaris";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 import { useLoaderData, useRouteError, useNavigate } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import prisma from "../db.server";
@@ -32,8 +36,17 @@ export default function FixedBundlePage() {
   const navigate = useNavigate();
 
   return (
+<<<<<<< HEAD
     <>
       
+=======
+    <Page
+      backAction={{ content: 'Fixed Bundles', onAction: () => navigate('/app/fixed-bundles') }}
+      title={offer ? "Edit Fixed Bundle Offer" : "Create Fixed Bundle Offer"}
+    >
+      <Layout>
+        <Layout.Section>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
           <FixedBundle offer={offer} />
         
     </>

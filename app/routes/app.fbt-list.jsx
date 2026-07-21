@@ -8,6 +8,20 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { formatDate } from "../offer.utils.js";
 import { useState } from "react";
+import {
+  Page,
+  Layout,
+  Card,
+  Button,
+  ButtonGroup,
+  Badge,
+  IndexTable,
+  Text,
+  EmptyState,
+  Box,
+  BlockStack,
+  InlineStack
+} from "@shopify/polaris";
 
 export async function loader({ request }) {
   const { session } = await authenticate.admin(request);
@@ -84,6 +98,7 @@ export default function FbtListPage() {
   };
 
   return (
+<<<<<<< HEAD
     <>
       <ui-title-bar title="Frequently Bought Together">
         <button variant="breadcrumb" onClick={() => navigate('/app')}>
@@ -191,6 +206,132 @@ export default function FbtListPage() {
         </s-box>
       </s-page>
     </>
+=======
+    <Page
+      backAction={{ content: 'Dashboard', onAction: () => navigate('/app') }}
+      title="Frequently Bought Together"
+      primaryAction={{
+        content: "Create FBT Offer",
+        onAction: () => navigate("/app/fbt"),
+      }}
+    >
+      <Layout>
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              {offers.length === 0 ? (
+                <EmptyState
+                  heading="No offers yet"
+                  action={{
+                    content: "Create FBT Offer",
+                    onAction: () => navigate("/app/fbt"),
+                  }}
+                  image=""
+                >
+                  <p>Create your first Frequently Bought Together offer to increase AOV.</p>
+                </EmptyState>
+              ) : (
+                <IndexTable
+                  resourceName={{
+                    singular: "offer",
+                    plural: "offers",
+                  }}
+                  itemCount={offers.length}
+                  selectable={false}
+                  headings={[
+                    { title: "Title" },
+                    { title: "Trigger products" },
+                    { title: "Bundled products" },
+                    { title: "Discount" },
+                    { title: "Status" },
+                    { title: "Start date" },
+                    { title: "End date" },
+                    { title: "Actions" },
+                  ]}
+                >
+                  {offers.map((offer, index) => {
+                    const triggers =
+                      offer.triggerProducts?.map((p) => p.title).join(", ") ||
+                      "All products";
+                    const bundledCount = offer.bundledProducts?.length ?? 0;
+                    const bundled = bundledCount
+                      ? `${bundledCount} product${bundledCount !== 1 ? "s" : ""}`
+                      : "-";
+
+                    let discountLabel = "-";
+                    if (offer.discountType === "free") discountLabel = "Free";
+                    else if (offer.discountType === "percentage")
+                      discountLabel = `${offer.discountValue}% off`;
+                    else if (offer.discountType === "amount")
+                      discountLabel = `$${offer.discountValue} off`;
+
+                    const tone = offer.status === "ACTIVE" ? "success" : offer.status === "PAUSED" ? "attention" : "new";
+
+                    return (
+                      <IndexTable.Row
+                        id={offer.id}
+                        key={offer.id}
+                        position={index}
+                      >
+                        <IndexTable.Cell>
+                          <Text as="span" fontWeight="semibold">
+                            {offer.discountTitle || offer.title}
+                          </Text>
+                        </IndexTable.Cell>
+                        <IndexTable.Cell>
+                          <Box maxWidth="250px" title={triggers}>
+                            <Text as="span" tone="subdued" truncate>
+                              {triggers}
+                            </Text>
+                          </Box>
+                        </IndexTable.Cell>
+                        <IndexTable.Cell>{bundled}</IndexTable.Cell>
+                        <IndexTable.Cell>{discountLabel}</IndexTable.Cell>
+                        <IndexTable.Cell>
+                          <Badge tone={tone}>{offer.status}</Badge>
+                        </IndexTable.Cell>
+                        <IndexTable.Cell>
+                          {formatDate(offer.startDate)}
+                        </IndexTable.Cell>
+                        <IndexTable.Cell>
+                          {formatDate(offer.endDate)}
+                        </IndexTable.Cell>
+                        <IndexTable.Cell>
+                          <ButtonGroup>
+                            <Button
+                              size="slim"
+                              onClick={() => navigate(`/app/fbt?id=${offer.id}`)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="slim"
+                              onClick={() => handleToggleStatus(offer)}
+                              loading={toggling === offer.id}
+                            >
+                              {offer.status === "ACTIVE" ? "Pause" : "Activate"}
+                            </Button>
+                            <Button
+                              size="slim"
+                              tone="critical"
+                              onClick={() => handleDelete(offer.id)}
+                              loading={deleting === offer.id}
+                            >
+                              Delete
+                            </Button>
+                          </ButtonGroup>
+                        </IndexTable.Cell>
+                      </IndexTable.Row>
+                    );
+                  })}
+                </IndexTable>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+      </Layout>
+    </Page>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 }
 

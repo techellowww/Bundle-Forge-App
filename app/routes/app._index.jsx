@@ -1,6 +1,28 @@
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+<<<<<<< HEAD
 import { useRouteError, useLoaderData } from "react-router";
+=======
+import { useNavigate, useRouteError, useLoaderData } from "react-router";
+import {
+  Page,
+  Layout,
+  Card,
+  Button,
+  Icon,
+  Text,
+  BlockStack,
+  InlineStack,
+  Box,
+  Grid,
+} from "@shopify/polaris";
+import {
+  ChatIcon,
+  PlayCircleIcon,
+  EnvelopeIcon,
+  ArrowRightIcon,
+} from "@shopify/polaris-icons";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 import { useState } from "react";
 import CreateOfferModal from "../components/CreateOfferModal";
 import db from "../db.server";
@@ -42,6 +64,7 @@ export const loader = async ({ request }) => {
   return { activeOffers, totalOffers };
 };
 
+<<<<<<< HEAD
 function SupportItem({ iconType, title, description, url }) {
   return (
     <a 
@@ -78,11 +101,63 @@ function SupportItem({ iconType, title, description, url }) {
         </s-stack>
       </s-box>
     </a>
+=======
+function SupportCard({ icon, title, description, url }) {
+  return (
+    <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 6, xl: 6 }}>
+      <a 
+        href={url} 
+        target={url.startsWith("http") ? "_blank" : "_self"} 
+        rel="noreferrer" 
+        style={{ textDecoration: "none", color: "inherit", display: "block", height: "100%" }}
+      >
+        <Card padding="500">
+          <InlineStack align="space-between" blockAlign="center">
+            <InlineStack gap="300" blockAlign="start">
+              {icon && (
+                <Box
+                  minWidth="32px"
+                  paddingBlockStart="050"
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Icon source={icon} />
+                </Box>
+              )}
+
+              <BlockStack gap="200">
+                <Text as="h3" variant="headingSm">
+                  {title}
+                </Text>
+
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {description}
+                </Text>
+              </BlockStack>
+            </InlineStack>
+
+            <Box
+              style={{
+                display: "flex",
+                alignItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Icon source={ArrowRightIcon} tone="subdued" />
+            </Box>
+          </InlineStack>
+        </Card>
+      </a>
+    </Grid.Cell>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 }
 
 function StatItem({ value, label }) {
   return (
+<<<<<<< HEAD
     <s-box padding="large" background="bg-surface-secondary" borderRadius="base" style={{ flex: 1, textAlign: "center" }}>
       <s-stack direction="block" alignItems="center" gap="small-200">
         <s-text as="p" variant="heading3xl" style={{ fontSize: '3.5rem', fontWeight: 'bold' }}>
@@ -93,11 +168,32 @@ function StatItem({ value, label }) {
         </s-text>
       </s-stack>
     </s-box>
+=======
+    <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 6, xl: 6 }}>
+      <Card>
+        <Box paddingBlock="400">
+          <BlockStack align="center" gap="100">
+            <Text as="p" variant="heading2xl">
+              {value}
+            </Text>
+
+            <Text as="p" variant="bodySm" tone="subdued">
+              {label}
+            </Text>
+          </BlockStack>
+        </Box>
+      </Card>
+    </Grid.Cell>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 }
 
 export default function Dashboard() {
   const { activeOffers, totalOffers } = useLoaderData();
+<<<<<<< HEAD
+=======
+  const [openModal, setOpenModal] = useState(false);
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
   const supportItems = [
     {
@@ -131,6 +227,7 @@ export default function Dashboard() {
   ];
 
   return (
+<<<<<<< HEAD
     <s-page heading="Bundle Forge" subheading="Create and manage bundle offers to increase AOV">
       <ui-title-bar title="Bundle Forge">
         <button variant="primary" onClick={() => document.getElementById('create-offer-modal').show()}>Create Offer</button>
@@ -168,6 +265,49 @@ export default function Dashboard() {
 
       <CreateOfferModal />
     </s-page>
+=======
+    <Page
+      title="Bundle Forge"
+      subtitle="Create and manage bundle offers to increase AOV"
+      primaryAction={{
+        content: "Create Offer",
+        onAction: () => setOpenModal(true),
+      }}
+    >
+      <BlockStack gap="600">
+        <Layout>
+          {/* Support */}
+          <Layout.Section>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Get support
+              </Text>
+              <Grid>
+                {supportItems.map((item, index) => (
+                  <SupportCard key={index} {...item} />
+                ))}
+              </Grid>
+            </BlockStack>
+          </Layout.Section>
+
+          {/* Stats */}
+          <Layout.Section>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Offer Analytics
+              </Text>
+              <Grid>
+                <StatCard value={activeOffers.toString()} label="Active Offers" />
+                <StatCard value={totalOffers.toString()} label="Total Offers" />
+              </Grid>
+            </BlockStack>
+          </Layout.Section>
+        </Layout>
+      </BlockStack>
+
+      <CreateOfferModal open={openModal} onClose={() => setOpenModal(false)} />
+    </Page>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 }
 

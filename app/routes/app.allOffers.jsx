@@ -1,6 +1,31 @@
+<<<<<<< HEAD
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useLoaderData, useNavigate, useRevalidator, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+=======
+import { useState, useMemo } from "react";
+import { useLoaderData, useNavigate, useRevalidator, useRouteError } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+import {
+  Page,
+  Layout,
+  Card,
+  Badge,
+  Button,
+  ButtonGroup,
+  Modal,
+  IndexTable,
+  Text,
+  InlineStack,
+  BlockStack,
+  EmptyState,
+  Box,
+  Tabs,
+  TextField,
+  Icon,
+} from "@shopify/polaris";
+import { SearchIcon } from "@shopify/polaris-icons";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { getStatusColor, formatDate } from "../offer.utils.js";
@@ -91,7 +116,10 @@ export async function loader({ request }) {
       status: o.status,
       startDate: o.startDate,
       endDate: o.endDate,
+<<<<<<< HEAD
       updatedAt: o.updatedAt,
+=======
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
       appliedTo: TYPE_CONFIG[type].appliedTo(o),
     }));
 
@@ -113,6 +141,7 @@ const TABS = [
   { id: "fbt", content: "Frequently Bought Together" },
 ];
 
+<<<<<<< HEAD
 const CustomModal = ({ open, onClose, title, primaryAction, secondaryActions, children }) => {
   const ref = useRef(null);
 
@@ -157,6 +186,8 @@ const CustomModal = ({ open, onClose, title, primaryAction, secondaryActions, ch
   );
 };
 
+=======
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 export default function AllOffers() {
   const { offers } = useLoaderData();
   const navigate = useNavigate();
@@ -182,6 +213,7 @@ export default function AllOffers() {
     });
   }, [offers, activeType, query]);
 
+<<<<<<< HEAD
   const activeOffersCount = useMemo(() => offers.filter(o => o.status === 'ACTIVE').length, [offers]);
 
   const latestOfferDate = useMemo(() => {
@@ -190,6 +222,8 @@ export default function AllOffers() {
     return sorted[0].updatedAt || sorted[0].startDate;
   }, [offers]);
 
+=======
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   const openDeleteModal = (offer) =>
     setDeleteModal({
       open: true,
@@ -228,6 +262,7 @@ export default function AllOffers() {
     }
   };
 
+<<<<<<< HEAD
   const handleDuplicate = (offer) => {
     // Currently, there is no duplicate API endpoint.
     // Display a toast for now to prevent app logic changes while still rendering the button.
@@ -431,6 +466,144 @@ export default function AllOffers() {
         </CustomModal>
       </s-page>
     </>
+=======
+  const rowMarkup = filteredOffers.map((offer, index) => {
+    const config = TYPE_CONFIG[offer.type];
+    return (
+      <IndexTable.Row
+        id={offer.id}
+        key={`${offer.type}-${offer.id}`}
+        position={index}
+      >
+        <IndexTable.Cell>
+          <Text as="span" fontWeight="semibold">
+            {offer.title}
+          </Text>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <Badge tone={config.badgeTone}>{config.label}</Badge>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <Box maxWidth="240px" title={offer.appliedTo}>
+            <Text as="span" truncate>
+              {offer.appliedTo}
+            </Text>
+          </Box>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <Badge tone={getStatusColor(offer.status)}>{offer.status}</Badge>
+        </IndexTable.Cell>
+        <IndexTable.Cell>{formatDate(offer.startDate)}</IndexTable.Cell>
+        <IndexTable.Cell>{formatDate(offer.endDate)}</IndexTable.Cell>
+        <IndexTable.Cell>
+          <ButtonGroup>
+            <Button
+              size="slim"
+              onClick={() => navigate(config.editRoute(offer.id))}
+            >
+              Edit
+            </Button>
+            <Button
+              size="slim"
+              tone="critical"
+              onClick={() => openDeleteModal(offer)}
+            >
+              Delete
+            </Button>
+          </ButtonGroup>
+        </IndexTable.Cell>
+      </IndexTable.Row>
+    );
+  });
+
+  return (
+    <Page 
+      backAction={{ content: 'Dashboard', onAction: () => navigate('/app') }}
+      title="All Offers" 
+      subtitle="Manage every offer type from one place"
+    >
+      <Layout>
+        <Layout.Section>
+          <Card padding="0">
+            <Tabs
+              tabs={TABS}
+              selected={selectedTab}
+              onSelect={setSelectedTab}
+            />
+            <Box padding="400" paddingBlockEnd="0">
+              <TextField
+                labelHidden
+                label="Search offers"
+                placeholder="Search by title"
+                value={query}
+                onChange={setQuery}
+                prefix={<Icon source={SearchIcon} />}
+                autoComplete="off"
+                clearButton
+                onClearButtonClick={() => setQuery("")}
+              />
+            </Box>
+
+            <Box padding="400">
+              {filteredOffers.length === 0 ? (
+                <EmptyState
+                  heading={
+                    offers.length === 0
+                      ? "No offers yet"
+                      : "No offers match your search"
+                  }
+                  image=""
+                >
+                  <p>
+                    {offers.length === 0
+                      ? "Create your first offer to see it here."
+                      : "Try a different search term or tab."}
+                  </p>
+                </EmptyState>
+              ) : (
+                <IndexTable
+                  resourceName={{ singular: "offer", plural: "offers" }}
+                  itemCount={filteredOffers.length}
+                  selectable={false}
+                  headings={[
+                    { title: "Title" },
+                    { title: "Type" },
+                    { title: "Applied To" },
+                    { title: "Status" },
+                    { title: "Start Date" },
+                    { title: "End Date" },
+                    { title: "Actions" },
+                  ]}
+                >
+                  {rowMarkup}
+                </IndexTable>
+              )}
+            </Box>
+          </Card>
+        </Layout.Section>
+      </Layout>
+
+      <Modal
+        open={deleteModal.open}
+        onClose={closeDeleteModal}
+        title="Delete Offer"
+        primaryAction={{
+          content: "Delete",
+          tone: "critical",
+          loading: isDeleting,
+          onAction: handleConfirmDelete,
+        }}
+        secondaryActions={[{ content: "Cancel", onAction: closeDeleteModal }]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            Are you sure you want to delete <strong>{deleteModal.title}</strong>
+            ? This action cannot be undone.
+          </Text>
+        </Modal.Section>
+      </Modal>
+    </Page>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 }
 

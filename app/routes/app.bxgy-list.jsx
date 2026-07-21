@@ -186,6 +186,7 @@ export default function BxgyListPage() {
   };
 
   return (
+<<<<<<< HEAD
     <>
     <ui-title-bar title="Buy X Get Y Offers">
       <button variant="breadcrumb" onClick={() => navigate('/app')}>
@@ -201,6 +202,22 @@ export default function BxgyListPage() {
             <s-stack direction="block" gap="base">
               <s-stack direction="inline" justifyContent="space-between">
                 <s-text variant="bodyMd" tone="subdued">
+=======
+    <Page
+      backAction={{ content: 'Dashboard', onAction: () => navigate('/app') }}
+      title="Buy X Get Y Offers"
+      primaryAction={{
+        content: "Create Offer",
+        onAction: () => navigate("/app/buyXgetY"),
+      }}
+    >
+      <Layout>
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <Text variant="bodyMd" tone="subdued">
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
                   {offers.length} offer{offers.length !== 1 ? "s" : ""}
                 </s-text>
               </s-stack>

@@ -1,4 +1,20 @@
+<<<<<<< HEAD
 
+=======
+import {
+  Card,
+  BlockStack,
+  InlineGrid,
+  InlineStack,
+  Box,
+  Text,
+  TextField,
+  Select,
+  Button,
+  Thumbnail,
+  Checkbox,
+} from "@shopify/polaris";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
 const BundleOffer = ({
   title,
@@ -123,10 +139,21 @@ const BundleOffer = ({
           helpText="Enter the discount percentage customers receive when purchasing the complete bundle."
         />
 
+<<<<<<< HEAD
         <s-checkbox label="Require minimum purchase quantity" checked={requireMinQty} onInput={(e) => setRequireMinQty(e.target.checked)} />
 
         {requireMinQty && (
           <s-textField
+=======
+        <Checkbox
+          label="Require minimum purchase quantity"
+          checked={requireMinQty}
+          onChange={setRequireMinQty}
+        />
+
+        {requireMinQty && (
+          <TextField
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
             label="Minimum quantity to purchase"
             type="number"
             value={minQuantity}
@@ -136,8 +163,13 @@ const BundleOffer = ({
           />
         )}
 
+<<<<<<< HEAD
         <s-stack direction="block" gap="small-200">
           <s-text as="h3" variant="headingSm">
+=======
+        <BlockStack gap="200">
+          <Text as="h3" variant="headingSm">
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
             Bundle Products
           </s-text>
 
@@ -166,10 +198,23 @@ const BundleOffer = ({
               const discounted = getDiscountedPrice(product.price);
 
               return (
+<<<<<<< HEAD
                 <s-box key={product.id} padding="small-200" border="base subdued solid" borderRadius="small-200">
                   <s-stack direction="inline" justifyContent="space-between" alignItems="center">
                     <s-stack direction="inline" gap="small-200" alignItems="center">
                       <s-thumbnail
+=======
+                <Box
+                  key={product.id}
+                  padding="200"
+                  borderWidth="025"
+                  borderColor="border"
+                  borderRadius="200"
+                >
+                  <InlineStack align="space-between" blockAlign="center">
+                    <InlineStack gap="200" blockAlign="center">
+                      <Thumbnail
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
                         source={
                           product.featuredImage?.url ||
                           product.images?.[0]?.url ||
@@ -180,8 +225,13 @@ const BundleOffer = ({
                         size="small"
                       />
 
+<<<<<<< HEAD
                       <s-stack direction="block" gap="0">
                         <s-text as="span" fontWeight="medium" variant="bodyMd">
+=======
+                      <BlockStack gap="0">
+                        <Text as="span" fontWeight="medium" variant="bodyMd">
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
                           {product.title}
                         </s-text>
 
@@ -219,9 +269,15 @@ const BundleOffer = ({
                       onClick={() => removeGiftProduct(product.id)}
                     >
                       Remove
+<<<<<<< HEAD
                     </s-button>
                   </s-stack>
                 </s-box>
+=======
+                    </Button>
+                  </InlineStack>
+                </Box>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
               );
             })}
           </s-stack>

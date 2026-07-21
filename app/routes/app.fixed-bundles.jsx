@@ -2,7 +2,26 @@ import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { useLoaderData, useNavigate, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+<<<<<<< HEAD
 import { useState, useRef, useEffect } from "react";
+=======
+import { useState } from "react";
+import {
+  Page,
+  Layout,
+  Card,
+  Button,
+  ButtonGroup,
+  Badge,
+  Modal,
+  IndexTable,
+  Text,
+  InlineStack,
+  BlockStack,
+  EmptyState,
+  Box,
+} from "@shopify/polaris";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 import { getOfferStatus, getStatusColor, formatDate } from "../offer.utils.js";
 
 export async function loader({ request }) {
@@ -160,6 +179,7 @@ export default function FixedBundlesListPage() {
   };
 
   return (
+<<<<<<< HEAD
     <>
       <ui-title-bar title="Fixed Bundle Offers">
         <button variant="breadcrumb" onClick={() => navigate('/app')}>
@@ -177,6 +197,25 @@ export default function FixedBundlesListPage() {
                 {bundles.length} bundle{bundles.length !== 1 ? "s" : ""}
               </s-text>
             </s-stack>
+=======
+    <Page
+      backAction={{ content: 'Dashboard', onAction: () => navigate('/app') }}
+      title="Fixed Bundle Offers"
+      primaryAction={{
+        content: "Create Bundle",
+        onAction: () => navigate("/app/fixed-bundle"),
+      }}
+    >
+      <Layout>
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <Text variant="bodyMd" tone="subdued">
+                  {bundles.length} bundle{bundles.length !== 1 ? "s" : ""}
+                </Text>
+              </InlineStack>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
             {bundles.length === 0 ? (
               <s-stack direction="block" gap="base" alignItems="center">

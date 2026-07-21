@@ -2,7 +2,26 @@ import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { useLoaderData, useNavigate, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+<<<<<<< HEAD
 import { useState, useRef } from "react";
+=======
+import { useState } from "react";
+import {
+  Page,
+  Layout,
+  Card,
+  Button,
+  ButtonGroup,
+  Badge,
+  Modal,
+  IndexTable,
+  Text,
+  InlineStack,
+  BlockStack,
+  Box,
+  EmptyState,
+} from "@shopify/polaris";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 import { getOfferStatus, getStatusColor, formatDate } from "../offer.utils.js";
 
 export async function loader({ request }) {
@@ -120,11 +139,31 @@ export default function QuantityBreakList() {
   };
 
   return (
+<<<<<<< HEAD
     <s-page>
       <ui-title-bar title="Quantity Break Offers">
         <button variant="breadcrumb" onClick={() => navigate('/app')}>Dashboard</button>
         <button variant="primary" onClick={() => navigate('/app/quantityBreak')}>Create Offer</button>
       </ui-title-bar>
+=======
+    <Page
+      backAction={{ content: 'Dashboard', onAction: () => navigate('/app') }}
+      title="Quantity Break Offers"
+      primaryAction={{
+        content: "Create Offer",
+        onAction: () => navigate("/app/quantityBreak"),
+      }}
+    >
+      <Layout>
+        <Layout.Section>
+          <Card padding="400">
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <Text variant="bodyMd" tone="subdued">
+                  {offers.length} offer{offers.length !== 1 ? "s" : ""}
+                </Text>
+              </InlineStack>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
       <s-stack direction="block" gap="600">
         <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">

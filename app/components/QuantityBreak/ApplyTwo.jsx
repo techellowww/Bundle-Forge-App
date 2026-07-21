@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 
 
@@ -19,6 +20,23 @@ const Chip = ({ children, onRemove }) => {
     </s-clickable-chip>
   );
 };
+=======
+import { useState, useEffect, useRef } from "react";
+import {
+  Tag,
+  InlineStack,
+  BlockStack,
+  Card,
+  Select,
+  Text,
+  Box,
+  Button,
+  Thumbnail,
+  Autocomplete,
+  Icon,
+} from "@shopify/polaris";
+import { SearchIcon } from "@shopify/polaris-icons";
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
 
 const MultiSelectField = ({
   label,
@@ -64,7 +82,11 @@ const MultiSelectField = ({
   );
 
   return (
+<<<<<<< HEAD
     <s-stack direction="block" gap="small-200">
+=======
+    <BlockStack gap="200">
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
       <Autocomplete
         allowMultiple
         options={autocompleteOptions}
@@ -90,7 +112,11 @@ const MultiSelectField = ({
           ))}
         </s-stack>
       )}
+<<<<<<< HEAD
     </s-stack>
+=======
+    </BlockStack>
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
   );
 };
 

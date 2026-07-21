@@ -50,6 +50,7 @@ export default function CreateOfferModal() {
   }, [navigate]);
 
   return (
+<<<<<<< HEAD
     <ui-modal id="create-offer-modal" variant="base">
       <ui-title-bar title="Choose offer type">
         <button variant="primary" onClick={() => shopify.modal.hide('create-offer-modal')}>
@@ -60,6 +61,12 @@ export default function CreateOfferModal() {
       <s-box padding="large">
         <s-stack direction="block" gap="large">
           <s-text alignment="center" variant="headingLg" as="h2">
+=======
+    <Modal open={open} onClose={onClose} title="Choose offer type" size="medium">
+      <Modal.Section>
+        <BlockStack gap="500">
+          <Text alignment="center" variant="headingLg" as="h2">
+>>>>>>> e93eec2eef18eaba75c6d84fc6f82c73291e99be
             Choose an offer type to begin
           </s-text>
 
