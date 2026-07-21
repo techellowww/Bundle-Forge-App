@@ -2,9 +2,11 @@
  * /app/routes/app.fbt-list.jsx
  */
 
-import { useLoaderData, useNavigate, useRevalidator } from "react-router";
+import { useLoaderData, useNavigate, useRevalidator, useRouteError } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { formatDate } from "../offer.utils.js";
 import { useState } from "react";
 
 export async function loader({ request }) {
@@ -23,12 +25,6 @@ export async function loader({ request }) {
 
   return Response.json({ offers });
 }
-
-const STATUS_COLOR = {
-  ACTIVE: "#00a651",
-  PAUSED: "#f5a623",
-  DRAFT: "#8c9196",
-};
 
 export default function FbtListPage() {
   const { offers } = useLoaderData();
@@ -88,152 +84,120 @@ export default function FbtListPage() {
   };
 
   return (
-    <s-page heading="Frequently Bought Together">
-      <s-box paddingBlockEnd="400">
-        <s-stack
-          direction="inline"
-          blockAlignment="center"
-          inlineAlignment="end"
-        >
-          <s-button
-            variant="primary"
-            onClick={() => navigate("/app/fbt")}
-          >
-            + Create FBT Offer
-          </s-button>
-        </s-stack>
-      </s-box>
-
-      <s-section>
-        {offers.length === 0 ? (
-          <s-box padding="800" style={{ textAlign: "center" }}>
-            <s-stack direction="block" gap="base" blockAlignment="center">
-              <s-heading>No offers yet</s-heading>
-              <s-text tone="subdued">
-                Create your first Frequently Bought Together offer to increase
-                AOV.
+    <>
+      <ui-title-bar title="Frequently Bought Together">
+        <button variant="breadcrumb" onClick={() => navigate('/app')}>
+          Dashboard
+        </button>
+        <button variant="primary" onClick={() => navigate('/app/fbt')}>
+          Create FBT Offer
+        </button>
+      </ui-title-bar>
+      <s-page>
+        <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">
+          <s-stack direction="block" gap="base">
+            <s-stack direction="inline" justifyContent="space-between">
+              <s-text variant="bodyMd" tone="subdued">
+                {offers.length} offer{offers.length !== 1 ? "s" : ""}
               </s-text>
-              <s-button
-                variant="primary"
-                onClick={() => navigate("/app/fbt")}
-              >
-                Create FBT Offer
-              </s-button>
             </s-stack>
-          </s-box>
-        ) : (
-          <s-table>
-            <s-table-header-row>
-              <s-table-header>Title</s-table-header>
-              <s-table-header>Trigger products</s-table-header>
-              <s-table-header>Bundled products</s-table-header>
-              <s-table-header>Discount</s-table-header>
-              <s-table-header>Status</s-table-header>
-              <s-table-header>Start date</s-table-header>
-              <s-table-header>End date</s-table-header>
-              <s-table-header>Actions</s-table-header>
-            </s-table-header-row>
 
-            <s-table-body>
-              {offers.map((offer) => {
-                const triggers =
-                  offer.triggerProducts?.map((p) => p.title).join(", ") ||
-                  "All products";
-                const bundledCount = offer.bundledProducts?.length ?? 0;
-                const bundled = bundledCount
-                  ? `${bundledCount} product${bundledCount !== 1 ? "s" : ""}`
-                  : "-";
+            {offers.length === 0 ? (
+              <s-stack direction="block" gap="base" alignItems="center">
+                <s-text as="h2" variant="headingMd">No offers yet</s-text>
+                <s-text as="p" tone="subdued">Create your first Frequently Bought Together offer to increase AOV.</s-text>
+                <s-button onClick={() => navigate("/app/fbt")}>Create FBT Offer</s-button>
+              </s-stack>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e1e3e5' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Title</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Trigger products</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Bundled products</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Discount</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Status</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Start date</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>End date</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {offers.map((offer, index) => {
+                      const triggers =
+                        offer.triggerProducts?.map((p) => p.title).join(", ") ||
+                        "All products";
+                      const bundledCount = offer.bundledProducts?.length ?? 0;
+                      const bundled = bundledCount
+                        ? `${bundledCount} product${bundledCount !== 1 ? "s" : ""}`
+                        : "-";
 
-                let discountLabel = "-";
-                if (offer.discountType === "free") discountLabel = "Free";
-                else if (offer.discountType === "percentage")
-                  discountLabel = `${offer.discountValue}% off`;
-                else if (offer.discountType === "amount")
-                  discountLabel = `$${offer.discountValue} off`;
+                      let discountLabel = "-";
+                      if (offer.discountType === "free") discountLabel = "Free";
+                      else if (offer.discountType === "percentage")
+                        discountLabel = `${offer.discountValue}% off`;
+                      else if (offer.discountType === "amount")
+                        discountLabel = `$${offer.discountValue} off`;
 
-                return (
-                  <s-table-row key={offer.id}>
-                    <s-table-cell>
-                      <s-text variant="bodyMd" fontWeight="semibold">
-                        {offer.discountTitle || offer.title}
-                      </s-text>
-                    </s-table-cell>
-                    <s-table-cell>
-                      <s-text tone="subdued" style={{ fontSize: "13px" }}>
-                        {triggers.length > 40
-                          ? triggers.slice(0, 40) + "…"
-                          : triggers}
-                      </s-text>
-                    </s-table-cell>
-                    <s-table-cell>{bundled}</s-table-cell>
-                    <s-table-cell>{discountLabel}</s-table-cell>
-                    <s-table-cell>
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          fontSize: "13px",
-                          fontWeight: 500,
-                          color: STATUS_COLOR[offer.status] ?? "#8c9196",
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            background: STATUS_COLOR[offer.status] ?? "#8c9196",
-                            display: "inline-block",
-                          }}
-                        />
-                        {offer.status}
-                      </span>
-                    </s-table-cell>
-                    <s-table-cell>
-                      {offer.startDate
-                        ? new Date(offer.startDate).toLocaleDateString()
-                        : "-"}
-                    </s-table-cell>
-                    <s-table-cell>
-                      {offer.endDate
-                        ? new Date(offer.endDate).toLocaleDateString()
-                        : "-"}
-                    </s-table-cell>
-                    <s-table-cell>
-                      <s-stack direction="inline" gap="small">
-                        <s-button
-                          size="slim"
-                          onClick={() =>
-                            navigate(`/app/fbt?id=${offer.id}`)
-                          }
-                        >
-                          Edit
-                        </s-button>
-                        <s-button
-                          size="slim"
-                          onClick={() => handleToggleStatus(offer)}
-                          disabled={toggling === offer.id}
-                        >
-                          {offer.status === "ACTIVE" ? "Pause" : "Activate"}
-                        </s-button>
-                        <s-button
-                          size="slim"
-                          tone="critical"
-                          onClick={() => handleDelete(offer.id)}
-                          disabled={deleting === offer.id}
-                        >
-                          Delete
-                        </s-button>
-                      </s-stack>
-                    </s-table-cell>
-                  </s-table-row>
-                );
-              })}
-            </s-table-body>
-          </s-table>
-        )}
-      </s-section>
-    </s-page>
+                      const tone = offer.status === "ACTIVE" ? "success" : offer.status === "PAUSED" ? "attention" : "new";
+
+                      return (
+                        <tr key={offer.id} style={{ borderBottom: '1px solid #e1e3e5' }}>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-text as="span" fontWeight="semibold">
+                              {offer.discountTitle || offer.title}
+                            </s-text>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-box maxWidth="250px" title={triggers}>
+                              <s-text as="span" truncate="true">
+                                {triggers}
+                              </s-text>
+                            </s-box>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>{bundled}</td>
+                          <td style={{ padding: '12px 16px' }}>{discountLabel}</td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-badge tone={tone}>{offer.status}</s-badge>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            {formatDate(offer.startDate)}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            {formatDate(offer.endDate)}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-stack direction="inline" gap="small-200">
+                              <s-button size="slim" onClick={() => navigate(`/app/fbt?id=${offer.id}`)}>
+                                Edit
+                              </s-button>
+                              <s-button size="slim" onClick={() => handleToggleStatus(offer)}>
+                                {offer.status === "ACTIVE" ? "Pause" : "Activate"}
+                              </s-button>
+                              <s-button size="slim" tone="critical" onClick={() => handleDelete(offer.id)}>
+                                Delete
+                              </s-button>
+                            </s-stack>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </s-stack>
+        </s-box>
+      </s-page>
+    </>
   );
 }
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

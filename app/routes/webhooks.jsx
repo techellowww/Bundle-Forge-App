@@ -25,12 +25,11 @@ export const action = async ({ request }) => {
         if (shopRecord) {
           await db.bundle.deleteMany({ where: { shopId: shopRecord.id } });
           await db.offer.deleteMany({ where: { shopId: shopRecord.id } });
+          await db.quantityBreakOffer.deleteMany({ where: { shopId: shopRecord.id } });
+          await db.fixedBundleOffer.deleteMany({ where: { shopId: shopRecord.id } });
+          await db.frequentlyBoughtOffer.deleteMany({ where: { shopId: shopRecord.id } });
+          await db.bxgyOffer.deleteMany({ where: { shopId: shopRecord.id } });
         }
-        await db.quantityBreakOffer.deleteMany({
-          where: {
-            shopId: shopRecord.id,
-          },
-        });
         await db.session.deleteMany({ where: { shop } });
         console.log(`[GDPR] All data deleted for: ${shop}`);
       } catch (err) {

@@ -35,12 +35,12 @@ const QuantityBreakTier = ({ tiers, setTiers }) => {
 
   return (
     <s-section>
-      <s-card padding="large">
+      <s-box background="surface" borderRadius="300" shadow="100" padding="large">
         <s-stack gap="large">
           <s-heading>Quantity Breaks</s-heading>
 
           {tiers?.map((tier, index) => (
-            <s-card
+            <s-box background="surface" borderRadius="300" shadow="100"
               key={index}
               padding="medium"
               border="base"
@@ -195,14 +195,14 @@ const QuantityBreakTier = ({ tiers, setTiers }) => {
                   </s-button>
                 )}
               </s-stack>
-            </s-card>
+            </s-box>
           ))}
 
           <s-box paddingBlockStart="small">
             <s-button onClick={addTier}>+ Add Tier</s-button>
           </s-box>
         </s-stack>
-      </s-card>
+      </s-box>
     </s-section>
   );
 };

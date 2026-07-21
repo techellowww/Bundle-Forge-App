@@ -1,22 +1,9 @@
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
-import { useLoaderData, useNavigate } from "react-router";
+import { useLoaderData, useNavigate, useRouteError } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useState } from "react";
-import {
-  Page,
-  Layout,
-  Card,
-  Button,
-  ButtonGroup,
-  Badge,
-  Modal,
-  IndexTable,
-  Text,
-  InlineStack,
-  BlockStack,
-  EmptyState,
-  Box,
-} from "@shopify/polaris";
+import { useRef, useEffect } from "react";
 import { getOfferStatus, getStatusColor, formatDate } from "../offer.utils.js";
 
 export async function loader({ request }) {
@@ -49,6 +36,51 @@ export async function loader({ request }) {
 
   return Response.json({ offers });
 }
+
+
+const CustomModal = ({ open, onClose, title, primaryAction, secondaryActions, children }) => {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      if (open) {
+        ref.current.show();
+      } else {
+        ref.current.hide();
+      }
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const handleClose = () => onClose();
+    el.addEventListener('hide', handleClose);
+    return () => el.removeEventListener('hide', handleClose);
+  }, [onClose]);
+
+  return (
+    <ui-modal ref={ref}>
+      <s-box padding="large">
+        <s-stack direction="block" gap="large">
+          <s-text as="h2" variant="headingMd">{title}</s-text>
+          {children}
+          <s-stack direction="inline" justifyContent="end" gap="base">
+            {secondaryActions.map((action, i) => (
+              <s-button key={i} onClick={action.onAction}>{action.content}</s-button>
+            ))}
+            <s-button 
+              tone={primaryAction.tone === 'critical' ? 'critical' : 'primary'}
+              onClick={primaryAction.onAction}
+            >
+              {primaryAction.loading ? "Loading..." : primaryAction.content}
+            </s-button>
+          </s-stack>
+        </s-stack>
+      </s-box>
+    </ui-modal>
+  );
+};
 
 export default function BxgyListPage() {
   const { offers } = useLoaderData();
@@ -154,135 +186,118 @@ export default function BxgyListPage() {
   };
 
   return (
-    <Page
-      title="Buy X Get Y Offers"
-      primaryAction={{
-        content: "Create Offer",
-        onAction: () => navigate("/app/buyXgetY"),
-      }}
-    >
-      <Layout>
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text variant="bodyMd" tone="subdued">
+    <>
+    <ui-title-bar title="Buy X Get Y Offers">
+      <button variant="breadcrumb" onClick={() => navigate('/app')}>
+        Dashboard
+      </button>
+      <button variant="primary" onClick={() => navigate('/app/buyXgetY')}>
+        Create Offer
+      </button>
+    </ui-title-bar>
+    <s-page>
+      
+          <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">
+            <s-stack direction="block" gap="base">
+              <s-stack direction="inline" justifyContent="space-between">
+                <s-text variant="bodyMd" tone="subdued">
                   {offers.length} offer{offers.length !== 1 ? "s" : ""}
-                </Text>
-              </InlineStack>
+                </s-text>
+              </s-stack>
 
               {offers.length === 0 ? (
-                <EmptyState
-                  heading="No Buy X Get Y offers"
-                  image=""
-                  action={{
-                    content: "Create Offer",
-                    onAction: () => navigate("/app/buyXgetY"),
-                  }}
-                >
-                  <p>Create your first Buy X Get Y offer.</p>
-                </EmptyState>
+                <s-stack direction="block" gap="base" alignItems="center">
+                  <s-text as="h2" variant="headingMd">No Buy X Get Y offers</s-text>
+                  <s-text as="p" tone="subdued">Create your first Buy X Get Y offer.</s-text>
+                  <s-button onClick={() => navigate("/app/buyXgetY")}>Create Offer</s-button>
+                </s-stack>
               ) : (
-                <IndexTable
-                  resourceName={{
-                    singular: "offer",
-                    plural: "offers",
-                  }}
-                  itemCount={offers.length}
-                  selectable={false}
-                  headings={[
-                    { title: "Title" },
-                    { title: "Apply To" },
-                    { title: "Gift Type" },
-                    { title: "Gift Details" },
-                    { title: "Status" },
-                    { title: "Start Date" },
-                    { title: "End Date" },
-                    { title: "Actions" },
-                  ]}
-                >
-                  {offers.map((offer, index) => {
-                    const status = getOfferStatus(offer);
-                    const statusColor = getStatusColor(status);
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #e1e3e5' }}>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Title</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Apply To</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Gift Type</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Gift Details</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Status</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Start Date</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>End Date</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {offers.map((offer, index) => {
+                        const status = getOfferStatus(offer);
+                        const statusColor = getStatusColor(status);
 
-                    return (
-                      <IndexTable.Row
-                        id={offer.id}
-                        key={offer.id}
-                        position={index}
-                      >
-                        <IndexTable.Cell>
-                          <Text as="span" fontWeight="semibold">
-                            {offer.discountTitle || offer.title}
-                          </Text>
-                        </IndexTable.Cell>
+                        return (
+                          <tr key={offer.id} style={{ borderBottom: '1px solid #e1e3e5' }}>
+                            <td style={{ padding: '12px 16px' }}>
+                              <s-text as="span" fontWeight="semibold">
+                                {offer.discountTitle || offer.title}
+                              </s-text>
+                            </td>
 
-                        <IndexTable.Cell>
-                          <Box maxWidth="250px" title={getAppliedTo(offer)}>
-                            <Text as="span" truncate>
-                              {getAppliedTo(offer)}
-                            </Text>
-                          </Box>
-                        </IndexTable.Cell>
+                            <td style={{ padding: '12px 16px' }}>
+                              <s-box maxWidth="250px" title={getAppliedTo(offer)}>
+                                <s-text as="span" truncate="true">
+                                  {getAppliedTo(offer)}
+                                </s-text>
+                              </s-box>
+                            </td>
 
-                        <IndexTable.Cell>
-                          <Badge tone="info">
-                            {offer.giftMode === "PRODUCT_GIFT"
-                              ? "Product Gift"
-                              : "Shipping Discount"}
-                          </Badge>
-                        </IndexTable.Cell>
+                            <td style={{ padding: '12px 16px' }}>
+                              <s-badge tone="info">
+                                {offer.giftMode === "PRODUCT_GIFT"
+                                  ? "Product Gift"
+                                  : "Shipping Discount"}
+                              </s-badge>
+                            </td>
 
-                        <IndexTable.Cell>
-                          {getGiftDetails(offer)}
-                        </IndexTable.Cell>
+                            <td style={{ padding: '12px 16px' }}>
+                              {getGiftDetails(offer)}
+                            </td>
 
-                        <IndexTable.Cell>
-                          <Badge tone={statusColor}>{status}</Badge>
-                        </IndexTable.Cell>
+                            <td style={{ padding: '12px 16px' }}>
+                              <s-badge tone={statusColor}>{status}</s-badge>
+                            </td>
 
-                        <IndexTable.Cell>
-                          {formatDate(offer.startDate)}
-                        </IndexTable.Cell>
+                            <td style={{ padding: '12px 16px' }}>
+                              {formatDate(offer.startDate)}
+                            </td>
 
-                        <IndexTable.Cell>
-                          {formatDate(offer.endDate)}
-                        </IndexTable.Cell>
+                            <td style={{ padding: '12px 16px' }}>
+                              {formatDate(offer.endDate)}
+                            </td>
 
-                        <IndexTable.Cell>
-                          <ButtonGroup>
-                            <Button
-                              size="slim"
-                              onClick={() => handleEdit(offer.id)}
-                            >
-                              Edit
-                            </Button>
+                            <td style={{ padding: '12px 16px' }}>
+                              <s-stack direction="inline" gap="small-200">
+                                <s-button size="slim" onClick={() => handleEdit(offer.id)}>
+                                  Edit
+                                </s-button>
 
-                            <Button
-                              size="slim"
-                              tone="critical"
-                              onClick={() =>
-                                openDeleteModal(
-                                  offer.id,
-                                  offer.discountTitle || offer.title,
-                                )
-                              }
-                            >
-                              Delete
-                            </Button>
-                          </ButtonGroup>
-                        </IndexTable.Cell>
-                      </IndexTable.Row>
-                    );
-                  })}
-                </IndexTable>
+                                <s-button size="slim" tone="critical" onClick={() =>
+                                    openDeleteModal(
+                                      offer.id,
+                                      offer.discountTitle || offer.title,
+                                    )
+                                  }>
+                                  Delete
+                                </s-button>
+                              </s-stack>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
+            </s-stack>
+          </s-box>
 
-      <Modal
+      <CustomModal
         open={deleteModal.isOpen}
         onClose={closeDeleteModal}
         title="Delete Offer"
@@ -292,20 +307,21 @@ export default function BxgyListPage() {
           loading: isDeleting,
           onAction: handleConfirmDelete,
         }}
-        secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: closeDeleteModal,
-          },
-        ]}
+        secondaryActions={[{ content: "Cancel", onAction: closeDeleteModal }]}
       >
-        <Modal.Section>
-          <Text as="p">
-            Are you sure you want to delete <strong>{deleteModal.title}</strong>
-            ? This action cannot be undone.
-          </Text>
-        </Modal.Section>
-      </Modal>
-    </Page>
+        <s-text as="p">
+          Are you sure you want to delete <strong>{deleteModal.title}</strong>? This action cannot be undone.
+        </s-text>
+      </CustomModal>
+    </s-page>
+    </>
   );
 }
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

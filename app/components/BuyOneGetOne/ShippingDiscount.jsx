@@ -10,7 +10,7 @@ const ShippingDiscount = ({
 }) => {
   return (
     <s-section>
-      <s-card padding="large">
+      <s-box background="surface" borderRadius="300" shadow="100" padding="large">
         <s-stack direction="block" gap="large">
           <s-box borderRadius="base">
             <s-stack direction="block" gap="base">
@@ -58,7 +58,7 @@ const ShippingDiscount = ({
                 )}
               </s-grid>
 
-              <s-card padding="base" background="bg-surface-secondary">
+              <s-box background="surface" borderRadius="300" shadow="100" padding="base" background="bg-surface-secondary">
                 <s-stack direction="block" gap="base">
                   <s-checkbox
                     label="Create free shipping for products"
@@ -77,11 +77,11 @@ const ShippingDiscount = ({
                     />
                   )}
                 </s-stack>
-              </s-card>
+              </s-box>
             </s-stack>
           </s-box>
         </s-stack>
-      </s-card>
+      </s-box>
     </s-section>
   );
 };

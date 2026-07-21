@@ -1,15 +1,4 @@
-import {
-  Card,
-  BlockStack,
-  InlineGrid,
-  InlineStack,
-  Box,
-  Text,
-  TextField,
-  Select,
-  Button,
-  Thumbnail,
-} from "@shopify/polaris";
+
 
 const BundleOffer = ({
   title,
@@ -26,6 +15,10 @@ const BundleOffer = ({
   setSelectProducts,
   offerPercentage,
   setOfferPercentage,
+  requireMinQty,
+  setRequireMinQty,
+  minQuantity,
+  setMinQuantity,
 }) => {
   const MAX_PRODUCTS = 4;
 
@@ -34,38 +27,31 @@ const BundleOffer = ({
       const result = await shopify.resourcePicker({
         type: "product",
         multiple: true,
+        selectionIds: selectProducts.map((p) => ({ id: p.id })),
       });
 
-      if (result?.selection?.length) {
-        setSelectProducts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
+      if (result && result.selection) {
+        if (result.selection.length > MAX_PRODUCTS) {
+          shopify.toast.show(
+            `Maximum ${MAX_PRODUCTS} products can be selected.`,
+            { isError: true },
+          );
+          return;
+        }
 
-          const newProducts = result.selection
-            .filter((p) => !existingIds.has(p.id))
-            .map((product) => ({
-              id: product.id,
-              title: product.title,
-              images: product.images || [],
-              featuredImage: product.featuredImage || null,
-              vendor: product.vendor,
-              productType: product.productType,
-              price: product.variants?.[0]?.price
-                ? parseFloat(product.variants[0].price)
-                : null,
-            }));
-
-          const merged = [...prev, ...newProducts];
-
-          if (merged.length > MAX_PRODUCTS) {
-            shopify.toast.show(
-              `Maximum ${MAX_PRODUCTS} products can be selected.`,
-              { isError: true },
-            );
-            return prev;
-          }
-
-          return merged;
-        });
+        setSelectProducts(
+          result.selection.map((product) => ({
+            id: product.id,
+            title: product.title,
+            images: product.images || [],
+            featuredImage: product.featuredImage || null,
+            vendor: product.vendor,
+            productType: product.productType,
+            price: product.variants?.[0]?.price
+              ? parseFloat(product.variants[0].price)
+              : null,
+          }))
+        );
       }
     } catch (err) {
       console.error(err);
@@ -89,28 +75,28 @@ const BundleOffer = ({
   };
 
   return (
-    <Card>
-      <BlockStack gap="500">
-        <Text as="h2" variant="headingMd">
+    <s-box background="surface" borderRadius="300" shadow="100" padding="large">
+      <s-stack direction="block" gap="large">
+        <s-text as="h2" variant="headingMd">
           Bundle Offer
-        </Text>
+        </s-text>
 
-        <TextField
+        <s-textField
           label="Offer title"
           value={title}
           onChange={setTitle}
           autoComplete="off"
         />
 
-        <TextField
+        <s-textField
           label="Discount description"
           value={description}
           onChange={setDescription}
           autoComplete="off"
         />
 
-        <InlineGrid columns={2} gap="400">
-          <TextField
+        <s-grid columns={2} gap="base">
+          <s-textField
             label="Start date"
             type="date"
             value={startDate}
@@ -118,16 +104,16 @@ const BundleOffer = ({
             autoComplete="off"
           />
 
-          <TextField
+          <s-textField
             label="End date"
             type="date"
             value={endDate}
             onChange={setEndDate}
             autoComplete="off"
           />
-        </InlineGrid>
+        </s-grid>
 
-        <TextField
+        <s-textField
           label="Offer percentage"
           type="number"
           suffix="%"
@@ -137,40 +123,53 @@ const BundleOffer = ({
           helpText="Enter the discount percentage customers receive when purchasing the complete bundle."
         />
 
-        <BlockStack gap="200">
-          <Text as="h3" variant="headingSm">
+        <s-checkbox label="Require minimum purchase quantity" checked={requireMinQty} onInput={(e) => setRequireMinQty(e.target.checked)} />
+
+        {requireMinQty && (
+          <s-textField
+            label="Minimum quantity to purchase"
+            type="number"
+            value={minQuantity}
+            onChange={setMinQuantity}
+            autoComplete="off"
+            min={1}
+          />
+        )}
+
+        <s-stack direction="block" gap="small-200">
+          <s-text as="h3" variant="headingSm">
             Bundle Products
-          </Text>
+          </s-text>
 
-          <Text as="p" tone="subdued">
+          <s-text as="p" tone="subdued">
             Select a minimum of 2 and a maximum of 4 products.
-          </Text>
+          </s-text>
 
-          <Box paddingBlockStart="300">
-            <Button
+          <s-box paddingBlockStart="base">
+            <s-button
               variant="primary"
               onClick={openGiftProductPicker}
               disabled={isAtLimit}
             >
               {isAtLimit ? "Maximum products selected" : "Select Products"}
-            </Button>
-          </Box>
-        </BlockStack>
+            </s-button>
+          </s-box>
+        </s-stack>
 
         {selectProducts.length > 0 && (
-          <BlockStack gap="300">
-            <Text as="p" variant="bodyMd">
+          <s-stack direction="block" gap="base">
+            <s-text as="p" variant="bodyMd">
               Selected Products ({selectProducts.length}/{MAX_PRODUCTS})
-            </Text>
+            </s-text>
 
             {selectProducts.map((product) => {
               const discounted = getDiscountedPrice(product.price);
 
               return (
-                <Card key={product.id} roundedAbove="sm">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <InlineStack gap="300" blockAlign="center">
-                      <Thumbnail
+                <s-box key={product.id} padding="small-200" border="base subdued solid" borderRadius="small-200">
+                  <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                    <s-stack direction="inline" gap="small-200" alignItems="center">
+                      <s-thumbnail
                         source={
                           product.featuredImage?.url ||
                           product.images?.[0]?.url ||
@@ -181,70 +180,59 @@ const BundleOffer = ({
                         size="small"
                       />
 
-                      <BlockStack gap="100">
-                        <Text as="span" fontWeight="medium">
+                      <s-stack direction="block" gap="0">
+                        <s-text as="span" fontWeight="medium" variant="bodyMd">
                           {product.title}
-                        </Text>
+                        </s-text>
 
                         {product.vendor && (
-                          <Text as="span" variant="bodySm" tone="subdued">
+                          <s-text as="span" variant="bodySm" tone="subdued">
                             {product.vendor}
-                          </Text>
+                          </s-text>
                         )}
 
                         {product.price != null && (
-                          <InlineStack gap="200">
+                          <s-stack direction="inline" gap="small-200">
                             {discounted ? (
                               <>
-                                <Text as="span" variant="bodySm" tone="subdued">
+                                <s-text as="span" variant="bodySm" tone="subdued">
                                   <del>${product.price.toFixed(2)}</del>
-                                </Text>
+                                </s-text>
 
-                                <Text as="span" variant="bodySm" tone="success">
+                                <s-text as="span" variant="bodySm" tone="success">
                                   ${discounted}
-                                </Text>
+                                </s-text>
                               </>
                             ) : (
-                              <Text as="span" variant="bodySm" tone="subdued">
+                              <s-text as="span" variant="bodySm" tone="subdued">
                                 ${product.price.toFixed(2)}
-                              </Text>
+                              </s-text>
                             )}
-                          </InlineStack>
+                          </s-stack>
                         )}
-                      </BlockStack>
-                    </InlineStack>
+                      </s-stack>
+                    </s-stack>
 
-                    <Button
+                    <s-button
                       tone="critical"
                       variant="plain"
                       onClick={() => removeGiftProduct(product.id)}
                     >
                       Remove
-                    </Button>
-                  </InlineStack>
-                </Card>
+                    </s-button>
+                  </s-stack>
+                </s-box>
               );
             })}
-          </BlockStack>
+          </s-stack>
         )}
 
-        <Select
-          label="Status"
-          value={status}
-          onChange={setStatus}
-          options={[
-            {
-              label: "Active",
-              value: "active",
-            },
-            {
-              label: "Inactive",
-              value: "inactive",
-            },
-          ]}
-        />
-      </BlockStack>
-    </Card>
+        <s-select label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+    <s-option value="active">Active</s-option>
+    <s-option value="inactive">Inactive</s-option>
+  </s-select>
+      </s-stack>
+    </s-box>
   );
 };
 

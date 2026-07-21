@@ -1,6 +1,8 @@
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useRouteError, useNavigate } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+
 import QuantityBreak from "../components/QuantityBreak/QuantityBreak";
 
 export async function loader({ request }) {
@@ -27,6 +29,19 @@ export async function loader({ request }) {
 
 export default function QuantityBreakPage() {
   const { offer } = useLoaderData();
+  const navigate = useNavigate();
 
-  return <QuantityBreak offer={offer} />;
+  return (
+    <>
+      <QuantityBreak offer={offer} />
+    </>
+  );
 }
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

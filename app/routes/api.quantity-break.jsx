@@ -52,7 +52,7 @@ export async function loader({ request }) {
       { headers: corsHeaders() },
     );
 
-  const matchedOffer = await prisma.quantityBreakOffer.findFirst({
+  const matchedOffers = await prisma.quantityBreakOffer.findMany({
     where: {
       shopId: shop.id,
       status: "active",
@@ -76,13 +76,20 @@ export async function loader({ request }) {
     orderBy: { createdAt: "desc" },
   });
 
-  let finalOffer = matchedOffer;
+  let finalOffer = null;
 
-  if (matchedOffer?.applyTo === "excludeProducts") {
-    const isExcluded = await prisma.quantityBreakProduct.findFirst({
-      where: { offerId: matchedOffer.id, productId, isExcluded: true },
-    });
-    if (isExcluded) finalOffer = null;
+  for (const offer of matchedOffers) {
+    if (offer.applyTo === "excludeProducts") {
+      const isExcluded = await prisma.quantityBreakProduct.findFirst({
+        where: { offerId: offer.id, productId, isExcluded: true },
+      });
+      if (isExcluded) continue;
+    }
+    // Note: api.quantity-break.jsx doesn't do the complex adminGraphQL filtering
+    // for vendors/types/collections like apps.quantity-break.jsx does, so if it 
+    // passes the basic exclude check, it's valid for the dashboard preview.
+    finalOffer = offer;
+    break;
   }
 
   return Response.json(
@@ -249,6 +256,7 @@ export async function action({ request }) {
                 ? new Date(startDate).toISOString()
                 : new Date().toISOString(),
               endsAt: endDate ? new Date(endDate).toISOString() : null,
+              combinesWith: { productDiscounts: true },
               metafields: [
                 {
                   namespace: "quantity_break",
@@ -419,6 +427,7 @@ export async function action({ request }) {
             ? new Date(startDate).toISOString()
             : new Date().toISOString(),
           endsAt: endDate ? new Date(endDate).toISOString() : null,
+          combinesWith: { productDiscounts: true },
           metafields: [
             {
               namespace: "quantity_break",

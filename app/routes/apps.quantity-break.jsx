@@ -213,10 +213,9 @@ export async function loader({ request }) {
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
 
-  const matchedOffer = await prisma.quantityBreakOffer.findFirst({
+  const matchedOffers = await prisma.quantityBreakOffer.findMany({
     where: {
       status: "active",
-
       OR: [
         { applyTo: "allProducts" },
         { applyTo: "excludeProducts" },
@@ -237,96 +236,77 @@ export async function loader({ request }) {
     orderBy: { createdAt: "desc" },
   });
 
-  let finalOffer = matchedOffer;
+  let finalOffer = null;
+  let fetchedAdminData = false;
+  let productVendor = null;
+  let productType = null;
+  let productCollectionIds = [];
 
-  if (finalOffer?.endDate) {
-    const endDate = new Date(finalOffer.endDate);
-    endDate.setHours(0, 0, 0, 0);
-
-    if (endDate < today) {
-      finalOffer = null;
+  for (const offer of matchedOffers) {
+    if (offer.endDate) {
+      const endDate = new Date(offer.endDate);
+      endDate.setHours(0, 0, 0, 0);
+      if (endDate < today) continue;
     }
-  }
 
-  if (matchedOffer?.applyTo === "excludeProducts") {
-    const isExcluded = await prisma.quantityBreakProduct.findFirst({
-      where: { offerId: matchedOffer.id, productId, isExcluded: true },
-    });
-    if (isExcluded) finalOffer = null;
-  }
+    if (offer.applyTo === "excludeProducts") {
+      const isExcluded = await prisma.quantityBreakProduct.findFirst({
+        where: { offerId: offer.id, productId, isExcluded: true },
+      });
+      if (isExcluded) continue;
+    }
 
-  if (
-    matchedOffer?.applyTo === "exceptSelectedVendorTypeCollection" ||
-    matchedOffer?.applyTo === "productsInSelectedVendorTypeCollection"
-  ) {
-    let productVendor = null;
-    let productType = null;
-    let productCollectionIds = [];
-
-    try {
-      const sessionToUse = await getSession(shopDomain);
-
-      if (sessionToUse?.accessToken) {
-        const data = await adminGraphQL(
-          shopDomain,
-          sessionToUse.accessToken,
-          `query getProduct($id: ID!) {
-            product(id: $id) {
-              vendor
-              productType
-              collections(first: 50) {
-                edges { node { id } }
-              }
-            }
-          }`,
-          { id: `gid://shopify/Product/${productId}` },
-        );
-
-        const product = data?.data?.product;
-        if (product) {
-          productVendor = product.vendor?.trim().toLowerCase() ?? null;
-          productType = product.productType?.trim().toLowerCase() ?? null;
-          productCollectionIds = product.collections.edges.map((e) =>
-            e.node.id.replace("gid://shopify/Collection/", ""),
-          );
-        }
-      }
-    } catch (err) {}
-
-    const offerVendors = matchedOffer.vendors.map((v) =>
-      v.vendor.trim().toLowerCase(),
-    );
-    const offerTypes = matchedOffer.types.map((t) =>
-      t.type.trim().toLowerCase(),
-    );
-    const offerCollectionIds = matchedOffer.collections.map((c) =>
-      String(c.collectionId),
-    );
-
-    const vendorMatch =
-      offerVendors.length > 0 && productVendor
-        ? offerVendors.includes(productVendor)
-        : false;
-
-    const typeMatch =
-      offerTypes.length > 0 && productType
-        ? offerTypes.includes(productType)
-        : false;
-
-    const collectionMatch =
-      offerCollectionIds.length > 0
-        ? productCollectionIds.some((id) => offerCollectionIds.includes(id))
-        : false;
-
-    const isMatch = vendorMatch || typeMatch || collectionMatch;
-
-    if (matchedOffer.applyTo === "exceptSelectedVendorTypeCollection") {
-      if (isMatch) finalOffer = null;
-    } else if (
-      matchedOffer.applyTo === "productsInSelectedVendorTypeCollection"
+    if (
+      offer.applyTo === "exceptSelectedVendorTypeCollection" ||
+      offer.applyTo === "productsInSelectedVendorTypeCollection"
     ) {
-      if (!isMatch) finalOffer = null;
+      if (!fetchedAdminData) {
+        fetchedAdminData = true;
+        try {
+          const sessionToUse = await getSession(shopDomain);
+          if (sessionToUse?.accessToken) {
+            const data = await adminGraphQL(
+              shopDomain,
+              sessionToUse.accessToken,
+              `query getProduct($id: ID!) {
+                product(id: $id) {
+                  vendor
+                  productType
+                  collections(first: 50) {
+                    edges { node { id } }
+                  }
+                }
+              }`,
+              { id: `gid://shopify/Product/${productId}` },
+            );
+            const product = data?.data?.product;
+            if (product) {
+              productVendor = product.vendor?.trim().toLowerCase() ?? null;
+              productType = product.productType?.trim().toLowerCase() ?? null;
+              productCollectionIds = product.collections.edges.map((e) =>
+                e.node.id.replace("gid://shopify/Collection/", ""),
+              );
+            }
+          }
+        } catch (err) {}
+      }
+
+      const offerVendors = offer.vendors.map((v) => v.vendor.trim().toLowerCase());
+      const offerTypes = offer.types.map((t) => t.type.trim().toLowerCase());
+      const offerCollectionIds = offer.collections.map((c) => String(c.collectionId));
+
+      const vendorMatch = offerVendors.length > 0 && productVendor ? offerVendors.includes(productVendor) : false;
+      const typeMatch = offerTypes.length > 0 && productType ? offerTypes.includes(productType) : false;
+      const collectionMatch = offerCollectionIds.length > 0 ? productCollectionIds.some((id) => offerCollectionIds.includes(id)) : false;
+      const isMatch = vendorMatch || typeMatch || collectionMatch;
+
+      if (offer.applyTo === "exceptSelectedVendorTypeCollection" && isMatch) continue;
+      if (offer.applyTo === "productsInSelectedVendorTypeCollection" && !isMatch) continue;
     }
+
+    // If it passes all checks, this is the most recently created valid offer
+    finalOffer = offer;
+    break;
   }
 
   // ── Native Shopify discounts ──────────────────────────────────────────────────
@@ -670,6 +650,8 @@ export async function loader({ request }) {
       title: bundle.title,
       description: bundle.description,
       offerPercentage: bundle.offerPercentage,
+      minQuantity: bundle.minQuantity,
+      isMinQuantityEnabled: bundle.minQuantity != null && bundle.minQuantity > 0,
       products: bundle.products.map((p) => ({
         id: p.productId,
         title: p.title,

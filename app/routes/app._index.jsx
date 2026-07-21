@@ -1,180 +1,173 @@
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { useNavigate, useRouteError } from "react-router";
-import {
-  Page,
-  Layout,
-  Card,
-  Button,
-  Icon,
-  Text,
-  BlockStack,
-  InlineStack,
-  Box,
-} from "@shopify/polaris";
-import {
-  ChatIcon,
-  PlayCircleIcon,
-  EnvelopeIcon,
-  ArrowRightIcon,
-} from "@shopify/polaris-icons";
+import { useRouteError, useLoaderData } from "react-router";
 import { useState } from "react";
 import CreateOfferModal from "../components/CreateOfferModal";
+import db from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return null;
+  const { session } = await authenticate.admin(request);
+
+  const shop = await db.shop.findUnique({
+    where: { domain: session.shop },
+    include: {
+      _count: {
+        select: {
+          bxgyOffers: true,
+          fbtOffers: true,
+          fixedBundles: true,
+          quantityBreakOffers: true,
+        },
+      },
+    },
+  });
+
+  if (!shop) {
+    return { activeOffers: 0, totalOffers: 0 };
+  }
+
+  // Count active offers
+  const activeBxgy = await db.bxgyOffer.count({ where: { shopId: shop.id, status: "active" } });
+  const activeFbt = await db.frequentlyBoughtOffer.count({ where: { shopId: shop.id, status: "active" } });
+  const activeFixed = await db.fixedBundleOffer.count({ where: { shopId: shop.id, status: "active" } });
+  const activeQb = await db.quantityBreakOffer.count({ where: { shopId: shop.id, status: "active" } });
+
+  const activeOffers = activeBxgy + activeFbt + activeFixed + activeQb;
+  const totalOffers = 
+    shop._count.bxgyOffers + 
+    shop._count.fbtOffers + 
+    shop._count.fixedBundles + 
+    shop._count.quantityBreakOffers;
+
+  return { activeOffers, totalOffers };
 };
 
-function SupportCard({ icon, title, description, onClick }) {
+function SupportItem({ iconType, title, description, url }) {
   return (
-    <Card padding="500">
-      <Box onClick={onClick} style={{ cursor: "pointer" }}>
-        <InlineStack align="space-between" blockAlign="center">
-          <InlineStack gap="300" blockAlign="start">
-            {icon && (
-              <Box
+    <a 
+      href={url} 
+      target={url.startsWith("http") ? "_blank" : "_self"} 
+      rel="noreferrer" 
+      style={{ textDecoration: "none", color: "inherit", display: "block" }}
+    >
+      <s-box padding="base" background="bg-surface-secondary" borderRadius="base">
+        <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+          <s-stack direction="inline" gap="base" alignItems="start">
+            {iconType && (
+              <s-box
                 minWidth="32px"
-                paddingBlockStart="050"
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                }}
+                paddingBlockStart="small-200"
+                style={{ display: "flex", justifyContent: "center" }}
               >
-                <Icon source={icon} />
-              </Box>
+                <s-icon type={iconType} />
+              </s-box>
             )}
 
-            <BlockStack gap="200">
-              <Text as="h3" variant="headingSm">
+            <s-stack direction="block" gap="small-200">
+              <s-text as="h3" variant="headingLg">
                 {title}
-              </Text>
-
-              <Text as="p" variant="bodySm" tone="subdued">
+              </s-text>
+              <s-text as="p" variant="bodyLg" tone="subdued" style={{ fontSize: '1.1rem', lineHeight: '1.5' }}>
                 {description}
-              </Text>
-            </BlockStack>
-          </InlineStack>
-
-          <Box
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Icon source={ArrowRightIcon} tone="subdued" />
-          </Box>
-        </InlineStack>
-      </Box>
-    </Card>
+              </s-text>
+            </s-stack>
+          </s-stack>
+          <s-box style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <s-icon type="arrow-right" tone="subdued" />
+          </s-box>
+        </s-stack>
+      </s-box>
+    </a>
   );
 }
 
-function StatCard({ value, label }) {
+function StatItem({ value, label }) {
   return (
-    <Card>
-      <Box paddingBlock="400">
-        <BlockStack align="center" gap="100">
-          <Text as="p" variant="heading2xl">
-            {value}
-          </Text>
-
-          <Text as="p" variant="bodySm" tone="subdued">
-            {label}
-          </Text>
-        </BlockStack>
-      </Box>
-    </Card>
+    <s-box padding="large" background="bg-surface-secondary" borderRadius="base" style={{ flex: 1, textAlign: "center" }}>
+      <s-stack direction="block" alignItems="center" gap="small-200">
+        <s-text as="p" variant="heading3xl" style={{ fontSize: '3.5rem', fontWeight: 'bold' }}>
+          {value}
+        </s-text>
+        <s-text as="p" variant="headingLg" tone="subdued">
+          {label}
+        </s-text>
+      </s-stack>
+    </s-box>
   );
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const [openModal, setOpenModal] = useState(false);
+  const { activeOffers, totalOffers } = useLoaderData();
 
   const supportItems = [
     {
-      icon: ChatIcon,
+      iconType: "chat",
       title: "Get Live Chat support",
       description:
         "Get support from our highly-skilled support team. We are only a message away!",
-      onClick: () => window.open("https://your-live-chat-url.com", "_blank"),
+      url: "https://your-live-chat-url.com",
     },
     {
-      icon: PlayCircleIcon,
+      iconType: "play-circle",
       title: "View FAQs",
       description:
         "View our Frequently Asked Questions and learn more about Bundle Forge functionality.",
-      onClick: () => window.open("https://your-faq-url.com", "_blank"),
+      url: "https://your-faq-url.com",
     },
     {
-      icon: PlayCircleIcon,
+      iconType: "play-circle",
       title: "Watch our YouTube series",
       description:
         "Watch all the step-by-step guides for the app in our YouTube series.",
-      onClick: () => window.open("https://youtube.com/your-channel", "_blank"),
+      url: "https://youtube.com/your-channel",
     },
     {
-      icon: EnvelopeIcon,
+      iconType: "envelope",
       title: "Contact via email",
       description:
         "Send us an email at support@ellowww.com for further assistance.",
-      onClick: () => (window.location.href = "mailto:support@ellowww.com"),
+      url: "mailto:support@ellowww.com",
     },
   ];
 
   return (
-    <Page
-      title="Bundle Forge"
-      subtitle="Create and manage bundle offers to increase AOV"
-      primaryAction={{
-        content: "Create Offer",
-        onAction: () => setOpenModal(true),
-      }}
-    >
-       <BlockStack gap="600">
-
-      <Layout>
-        {/* Support */}
-        <Layout.Section>
-          <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">
+    <s-page heading="Bundle Forge" subheading="Create and manage bundle offers to increase AOV">
+      <ui-title-bar title="Bundle Forge">
+        <button variant="primary" onClick={() => document.getElementById('create-offer-modal').show()}>Create Offer</button>
+      </ui-title-bar>
+      <s-stack direction="block" gap="large">
+        <s-section>
+          <s-stack direction="block" gap="base">
+            <s-text as="h2" variant="heading2xl">
               Get support
-            </Text>
+            </s-text>
+            <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+                {supportItems.map((item, index) => (
+                  <SupportItem key={index} {...item} />
+                ))}
+              </div>
+            </s-box>
+          </s-stack>
+        </s-section>
 
-            <Box
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
-                gap: "16px",
-              }}
-            >
-              {supportItems.map((item, index) => (
-                <SupportCard key={index} {...item} />
-              ))}
-            </Box>
-          </BlockStack>
-        </Layout.Section>
+        <s-section>
+          <s-stack direction="block" gap="base">
+            <s-text as="h2" variant="heading2xl">
+              Offer Analytics
+            </s-text>
+            <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">
+              <s-stack direction="inline" gap="large" justifyContent="space-around">
+                <StatItem value={activeOffers.toString()} label="Active Offers" />
+                <StatItem value={totalOffers.toString()} label="Total Offers" />
+              </s-stack>
+            </s-box>
+          </s-stack>
+        </s-section>
+      </s-stack>
 
-        {/* Stats */}
-        <Layout.Section>
-          <Box
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
-              gap: "16px",
-            }}
-          >
-            <StatCard value="0" label="Active Offers" />
-            <StatCard value="0" label="Total Offers" />
-          </Box>
-        </Layout.Section>
-      </Layout>
-       </BlockStack>
-
-      <CreateOfferModal open={openModal} onClose={() => setOpenModal(false)} />
-    </Page>
+      <CreateOfferModal />
+    </s-page>
   );
 }
 
