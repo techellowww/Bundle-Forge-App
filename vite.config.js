@@ -56,3 +56,5 @@ export default defineConfig({
     include: ["@shopify/app-bridge-react"],
   },
 });
+
+// trigger reload

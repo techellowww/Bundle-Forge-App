@@ -27,19 +27,19 @@ const QuantityBreakcart = ({
   const totalDiscounted = unitPrice * (Number(selectedTier?.quantity) || 0);
 
   return (
-    <s-section>
-      <s-card>
-        <s-stack direction="block" gap="loose" alignment="center">
-          <s-stack direction="block" gap="extra-tight" alignment="center">
-            <s-heading variant="headingMd">
+    <s-box paddingBlockEnd="base">
+      <s-box background="surface" borderRadius="300" shadow="100" padding="large">
+        <s-stack direction="block" gap="large">
+          <s-stack direction="block" gap="small-100">
+            <s-text as="h2" variant="headingMd">
               {discountTitle || "Volume discount save"}
-            </s-heading>
-            <s-text tone="subdued">
+            </s-text>
+            <s-text as="p" tone="subdued">
               {discountDescription || "Best deals selected for you!"}
             </s-text>
           </s-stack>
 
-          <s-stack direction="block" gap="small" width="100%">
+          <s-stack direction="block" gap="small-200">
             {tiers?.map((tier, index) => {
               const isSelected = selectedIndex === index;
               const tierUnitPrice = calculateDiscountedPrice(tier);
@@ -47,116 +47,98 @@ const QuantityBreakcart = ({
               const tierOriginalTotal = basePrice * tier.quantity;
 
               return (
-                <s-box
+                <div
                   key={index}
-                  padding="base"
-                  borderRadius="base"
-                  border={isSelected ? "bold" : "base"}
-                  background={isSelected ? "surface-secondary" : "surface"}
                   onClick={() => setSelectedIndex(index)}
-                  style={{ cursor: "pointer", transition: "all 0.2s" }}
+                  style={{ cursor: "pointer", outline: "none" }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      setSelectedIndex(index);
+                    }
+                  }}
                 >
-                  <s-grid
-                    gridTemplateColumns="auto 1fr auto"
-                    gap="base"
-                    alignment="center"
-                  >
-                    <s-box
-                      width="20px"
-                      height="20px"
-                      borderRadius="full"
-                      border="bold"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderColor: isSelected
-                          ? "var(--s-color-border-info)"
-                          : "var(--s-color-border-base)",
-                      }}
-                    >
-                      {isSelected && (
-                        <s-box
-                          width="10px"
-                          height="10px"
-                          borderRadius="full"
-                          background="info"
-                        />
-                      )}
-                    </s-box>
+                  <s-box padding="base" borderRadius="small-200" border={isSelected ? "brand solid" : "base subdued solid"} background={isSelected ? "brand-secondary" : "base"}>
+                    <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                      <s-stack direction="inline" gap="base" alignItems="center">
+                        <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: isSelected ? "2px solid #005bd3" : "1px solid #8c9196", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {isSelected && (
+                            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#005bd3" }} />
+                          )}
+                        </div>
 
-                    <s-stack
-                      direction="horizontal"
-                      gap="tight"
-                      alignment="center"
-                    >
-                      <s-text fontWeight="bold">
-                        {tier.tierTitle || "Bundle"}
-                      </s-text>
+                        <s-stack direction="inline" gap="small-200" alignItems="center">
+                          <s-text as="span" fontWeight="bold">
+                            {tier.tierTitle || "Bundle"}
+                          </s-text>
 
-                      {tier.labelEnabled && (
-                        <s-badge tone="attention" size="small">
-                          {tier.labelText}
-                        </s-badge>
-                      )}
+                          {tier.labelEnabled && (
+                            <s-badge tone="attention">
+                              {tier.labelText}
+                            </s-badge>
+                          )}
 
-                      {tier.tagEnabled && (
-                        <s-text tone="subdued" variant="bodySm">
-                          ({tier.tagText})
+                          {tier.tagEnabled && (
+                            <s-text as="span" tone="subdued" variant="bodySm">
+                              ({tier.tagText})
+                            </s-text>
+                          )}
+                        </s-stack>
+                      </s-stack>
+
+                      <s-stack direction="block" gap="0" alignItems="end">
+                        <s-text as="span" fontWeight="bold">
+                          ₹{tierTotal.toLocaleString()}
                         </s-text>
-                      )}
+                        <s-text
+                          as="span"
+                          tone="subdued"
+                          textDecorationLine="line-through"
+                          variant="bodySm"
+                        >
+                          ₹{tierOriginalTotal.toLocaleString()}
+                        </s-text>
+                      </s-stack>
                     </s-stack>
-
-                    <s-stack direction="block" alignment="end" gap="none">
-                      <s-text fontWeight="bold">
-                        ₹{tierTotal.toLocaleString()}
-                      </s-text>
-                      <s-text
-                        tone="subdued"
-                        decoration="line-through"
-                        variant="bodySm"
-                      >
-                        ₹{tierOriginalTotal.toLocaleString()}
-                      </s-text>
-                    </s-stack>
-                  </s-grid>
-                </s-box>
+                  </s-box>
+                </div>
               );
             })}
           </s-stack>
 
-          <s-stack direction="block" gap="small" width="100%">
+          <s-stack direction="block" gap="base">
             <s-divider></s-divider>
-            <s-grid gridTemplateColumns="1fr auto" alignment="center">
-              <s-text variant="headingSm">Total bundle price :</s-text>
-              <s-stack direction="horizontal" gap="tight" alignment="center">
-                <s-text variant="headingMd" fontWeight="bold">
+            <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+              <s-text as="span" variant="headingSm">Total bundle price :</s-text>
+              <s-stack direction="inline" gap="small-200" alignItems="center">
+                <s-text as="span" variant="headingMd" fontWeight="bold">
                   ₹{totalDiscounted.toLocaleString()}
                 </s-text>
                 <s-text
+                  as="span"
                   tone="subdued"
-                  decoration="line-through"
+                  textDecorationLine="line-through"
                   variant="bodySm"
                 >
                   ₹{totalOriginal.toLocaleString()}
                 </s-text>
               </s-stack>
-            </s-grid>
+            </s-stack>
 
             <s-button
               variant="primary"
               size="large"
               fullWidth
               onClick={() => saveOffer(selectedTier)}
-              style={{ backgroundColor: "#1a1a1a", color: "white" }}
             >
               Add bundles to cart (
               {selectedTier.label || `${selectedTier.value}% OFF`})
             </s-button>
           </s-stack>
         </s-stack>
-      </s-card>
-    </s-section>
+      </s-box>
+    </s-box>
   );
 };
 

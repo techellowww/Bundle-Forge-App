@@ -29,8 +29,12 @@ export function cartLinesDiscountsGenerateRun(input) {
     (a, b) => Number(b.quantity) - Number(a.quantity),
   );
   const candidates = [];
+  
+  const usageLimit = config.usageLimit ? Number(config.usageLimit) : 1;
+  let appliedCount = 0;
 
   for (const line of input.cart.lines) {
+    if (appliedCount >= usageLimit) break;
     const product = line.merchandise?.product;
     const productId = product?.id;
     const productVendor = product?.vendor ?? "";
@@ -99,9 +103,11 @@ export function cartLinesDiscountsGenerateRun(input) {
 
     candidates.push({
       message,
-      targets: [{ cartLine: { id: line.id } }],
+      targets: [{ cartLine: { id: line.id, quantity: Number(matchedTier.quantity) } }],
       value: discountValue,
     });
+    
+    appliedCount++;
   }
 
   return {

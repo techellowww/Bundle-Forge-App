@@ -1,4 +1,4 @@
-import prisma from "../db.server";
+import prisma, { resolveShop } from "../db.server";
 import { authenticate } from "../shopify.server";
 
 const FUNCTION_HANDLE = "fixed-bundle-discount";
@@ -31,11 +31,7 @@ const CREATE_DISCOUNT = `#graphql
 `;
 
 async function getShopId(shopDomain) {
-  const shop = await prisma.shop.upsert({
-    where: { domain: shopDomain },
-    update: {},
-    create: { domain: shopDomain, name: shopDomain },
-  });
+  const shop = await resolveShop(shopDomain);
   return shop.id;
 }
 
@@ -53,9 +49,10 @@ export async function loader({ request }) {
 }
 
 export async function action({ request }) {
-  const { session, admin } = await authenticate.admin(request);
-  const method = request.method.toUpperCase();
-  const shopId = await getShopId(session.shop);
+  try {
+    const { session, admin } = await authenticate.admin(request);
+    const method = request.method.toUpperCase();
+    const shopId = await getShopId(session.shop);
 
   // ── DELETE ──────────────────────────────────────────────────────────────
   if (method === "DELETE") {
@@ -94,6 +91,7 @@ export async function action({ request }) {
     status,
     giftProducts,
     offerPercentage,
+    minQuantity,
   } = body;
 
   // ── Validation ──────────────────────────────────────────────────────────
@@ -129,6 +127,7 @@ export async function action({ request }) {
       ? new Date(startDate).toISOString()
       : new Date().toISOString(),
     endsAt: endDate ? new Date(endDate).toISOString() : null,
+    combinesWith: { productDiscounts: true },
     metafields: [
       {
         namespace: "fixed-bundle",
@@ -137,6 +136,7 @@ export async function action({ request }) {
         value: JSON.stringify({
           description,
           offerPercentage: pct,
+          minQuantity: minQuantity,
           productIds: giftProducts.map((p) => p.id),
           status: status || "active",
         }),
@@ -168,6 +168,7 @@ export async function action({ request }) {
               ? new Date(startDate).toISOString()
               : new Date().toISOString(),
             endsAt: endDate ? new Date(endDate).toISOString() : null,
+            combinesWith: { productDiscounts: true },
             // no metafields here
           },
         },
@@ -201,6 +202,7 @@ export async function action({ request }) {
                 type: "json",
                 value: JSON.stringify({
                   offerPercentage: pct,
+                  minQuantity: minQuantity,
                   productIds: giftProducts.map((p) => p.id),
                   status: status || "active",
                 }),
@@ -214,7 +216,7 @@ export async function action({ request }) {
     const newStatus = (status || "active").toLowerCase();
     const currentStatus = existing.status?.toLowerCase();
 
-    if (newStatus !== currentStatus) {
+    if (newStatus !== currentStatus && existing.shopifyDiscountId) {
       const statusMutation =
         newStatus === "active"
           ? `mutation discountAutomaticActivate($id: ID!) {
@@ -250,6 +252,7 @@ export async function action({ request }) {
         title,
         description,
         offerPercentage: pct,
+        minQuantity: minQuantity,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         status: status || "active",
@@ -284,6 +287,7 @@ export async function action({ request }) {
             ? new Date(startDate).toISOString()
             : new Date().toISOString(),
           endsAt: endDate ? new Date(endDate).toISOString() : null,
+          combinesWith: { productDiscounts: true },
         },
       },
     });
@@ -321,6 +325,7 @@ export async function action({ request }) {
                 type: "json",
                 value: JSON.stringify({
                   offerPercentage: pct,
+                  minQuantity: minQuantity,
                   productIds: giftProducts.map((p) => p.id),
                   status: status || "active",
                 }),
@@ -345,6 +350,7 @@ export async function action({ request }) {
       title,
       description,
       offerPercentage: pct,
+      minQuantity: minQuantity,
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
       status: status || "active",
@@ -364,5 +370,9 @@ export async function action({ request }) {
     include: { products: { orderBy: { position: "asc" } } },
   });
 
-  return Response.json({ success: true, bundle });
+    return Response.json({ success: true, bundle });
+  } catch (err) {
+    console.error(err);
+    return Response.json({ success: false, error: err.message, stack: err.stack }, { status: 500 });
+  }
 }

@@ -1,22 +1,8 @@
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
-import { useLoaderData, useNavigate } from "react-router";
-import { useState } from "react";
-import {
-  Page,
-  Layout,
-  Card,
-  Button,
-  ButtonGroup,
-  Badge,
-  Modal,
-  IndexTable,
-  Text,
-  InlineStack,
-  BlockStack,
-  Box,
-  EmptyState,
-} from "@shopify/polaris";
+import { useLoaderData, useNavigate, useRouteError } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+import { useState, useRef } from "react";
 import { getOfferStatus, getStatusColor, formatDate } from "../offer.utils.js";
 
 export async function loader({ request }) {
@@ -53,9 +39,9 @@ export async function loader({ request }) {
 export default function QuantityBreakList() {
   const { offers } = useLoaderData();
   const navigate = useNavigate();
+  const modalRef = useRef(null);
 
   const [deleteModal, setDeleteModal] = useState({
-    isOpen: false,
     id: null,
     title: "",
   });
@@ -68,18 +54,18 @@ export default function QuantityBreakList() {
 
   const openDeleteModal = (id, title) => {
     setDeleteModal({
-      isOpen: true,
       id,
       title,
     });
+    modalRef.current?.show();
   };
 
   const closeDeleteModal = () => {
     setDeleteModal({
-      isOpen: false,
       id: null,
       title: "",
     });
+    modalRef.current?.hide();
   };
 
   const handleConfirmDelete = async () => {
@@ -134,158 +120,128 @@ export default function QuantityBreakList() {
   };
 
   return (
-    <Page
-      title="Quantity Break Offers"
-      primaryAction={{
-        content: "Create Offer",
-        onAction: () => navigate("/app/quantityBreak"),
-      }}
-    >
-      <Layout>
-        <Layout.Section>
-          <Card padding="400">
-            <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text variant="bodyMd" tone="subdued">
-                  {offers.length} offer{offers.length !== 1 ? "s" : ""}
-                </Text>
-              </InlineStack>
+    <s-page>
+      <ui-title-bar title="Quantity Break Offers">
+        <button variant="breadcrumb" onClick={() => navigate('/app')}>Dashboard</button>
+        <button variant="primary" onClick={() => navigate('/app/quantityBreak')}>Create Offer</button>
+      </ui-title-bar>
 
-              {offers.length === 0 ? (
-                <EmptyState
-                  heading="No quantity break offers"
-                  image=""
-                  action={{
-                    content: "Create Offer",
-                    onAction: () => navigate("/app/quantityBreak"),
-                  }}
-                >
-                  <p>Create your first quantity break offer.</p>
-                </EmptyState>
-              ) : (
-                <IndexTable
-                  resourceName={{
-                    singular: "offer",
-                    plural: "offers",
-                  }}
-                  itemCount={offers.length}
-                  selectable={false}
-                  headings={[
-                    { title: "Title" },
-                    { title: "Applied To" },
-                    { title: "Products" },
-                    { title: "Tiers" },
-                    { title: "Status" },
-                    { title: "Start Date" },
-                    { title: "End Date" },
-                    { title: "Actions" },
-                  ]}
-                >
-                  {offers.map((offer, index) => {
-                    const status = getOfferStatus(offer);
-                    const statusColor = getStatusColor(status);
+      <s-stack direction="block" gap="600">
+        <s-box padding="large" background="bg-surface" borderRadius="200" shadow="100">
+          <s-stack direction="block" gap="large">
+            <s-stack direction="inline" justifyContent="space-between">
+              <s-text variant="bodyMd" tone="subdued">
+                {offers.length} offer{offers.length !== 1 ? "s" : ""}
+              </s-text>
+            </s-stack>
 
-                    return (
-                      <IndexTable.Row
-                        id={offer.id}
-                        key={offer.id}
-                        position={index}
-                      >
-                        <IndexTable.Cell>
-                          <Text as="span" fontWeight="semibold">
-                            {offer.title}
-                          </Text>
-                        </IndexTable.Cell>
+            {offers.length === 0 ? (
+              <s-box padding="800">
+                <s-stack direction="block" alignItems="center" gap="large">
+                  <s-text as="h2" variant="headingLg">No quantity break offers</s-text>
+                  <s-text as="p" tone="subdued">Create your first quantity break offer.</s-text>
+                  <s-button variant="primary" onClick={() => navigate("/app/quantityBreak")}>Create Offer</s-button>
+                </s-stack>
+              </s-box>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e1e3e5' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Title</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Applied To</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Products</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Tiers</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Status</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Start Date</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>End Date</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {offers.map((offer, index) => {
+                      const status = getOfferStatus(offer);
+                      const statusColor = getStatusColor(status);
 
-                        <IndexTable.Cell>
-                          <Badge>{offer.applyTo}</Badge>
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          {getProductNames(offer.products)}
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          <Box
-                            title={offer.tiers
-                              ?.map(
-                                (tier) =>
-                                  `Qty ${tier.quantity}: ${tier.value}${tier.discountType === "percentage" ? "%" : "$"}`,
-                              )
-                              .join(", ")}
-                          >
-                            <Badge tone="info">
-                              {getTierSummary(offer.tiers)}
-                            </Badge>
-                          </Box>
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          <Badge tone={statusColor}>{status}</Badge>
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          {formatDate(offer.startDate)}
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          {formatDate(offer.endDate)}
-                        </IndexTable.Cell>
-
-                        <IndexTable.Cell>
-                          <ButtonGroup>
-                            <Button
-                              size="slim"
-                              onClick={() => handleEdit(offer.id)}
+                      return (
+                        <tr key={offer.id} style={{ borderBottom: '1px solid #e1e3e5' }}>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-text as="span" fontWeight="semibold">
+                              {offer.title}
+                            </s-text>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-badge>{offer.applyTo}</s-badge>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            {getProductNames(offer.products)}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <div
+                              title={offer.tiers
+                                ?.map(
+                                  (tier) =>
+                                    `Qty ${tier.quantity}: ${tier.value}${tier.discountType === "percentage" ? "%" : "$"}`,
+                                )
+                                .join(", ")}
                             >
-                              Edit
-                            </Button>
+                              <s-badge tone="info">
+                                {getTierSummary(offer.tiers)}
+                              </s-badge>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-badge tone={statusColor}>{status}</s-badge>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            {formatDate(offer.startDate)}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            {formatDate(offer.endDate)}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <s-stack direction="inline" gap="small-200">
+                              <s-button size="slim" onClick={() => handleEdit(offer.id)}>
+                                Edit
+                              </s-button>
+                              <s-button size="slim" tone="critical" onClick={() => openDeleteModal(offer.id, offer.title)}>
+                                Delete
+                              </s-button>
+                            </s-stack>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </s-stack>
+        </s-box>
+      </s-stack>
 
-                            <Button
-                              size="slim"
-                              tone="critical"
-                              onClick={() =>
-                                openDeleteModal(offer.id, offer.title)
-                              }
-                            >
-                              Delete
-                            </Button>
-                          </ButtonGroup>
-                        </IndexTable.Cell>
-                      </IndexTable.Row>
-                    );
-                  })}
-                </IndexTable>
-              )}
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
-
-      <Modal
-        open={deleteModal.isOpen}
-        onClose={closeDeleteModal}
-        title="Delete Offer"
-        primaryAction={{
-          content: "Delete",
-          tone: "critical",
-          loading: isDeleting,
-          onAction: handleConfirmDelete,
-        }}
-        secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: closeDeleteModal,
-          },
-        ]}
-      >
-        <Modal.Section>
-          <Text as="p">
+      <ui-modal ref={modalRef} id="delete-modal">
+        <ui-title-bar title="Delete Offer">
+          <button variant="primary" tone="critical" onClick={handleConfirmDelete} disabled={isDeleting}>
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+          <button onClick={closeDeleteModal}>Cancel</button>
+        </ui-title-bar>
+        <s-box padding="large">
+          <s-text as="p">
             Are you sure you want to delete <strong>{deleteModal.title}</strong>
             ? This action cannot be undone.
-          </Text>
-        </Modal.Section>
-      </Modal>
-    </Page>
+          </s-text>
+        </s-box>
+      </ui-modal>
+    </s-page>
   );
 }
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

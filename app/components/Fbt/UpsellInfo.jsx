@@ -12,7 +12,7 @@ const UpsellInfo = ({
 }) => {
   return (
     <s-section>
-      <s-card padding="large">
+      <s-box background="surface" borderRadius="300" shadow="100" padding="large">
         <s-stack gap="large">
           <s-heading>Basic information</s-heading>
 
@@ -49,7 +49,7 @@ const UpsellInfo = ({
             />
           </s-grid>
         </s-stack>
-      </s-card>
+      </s-box>
     </s-section>
   );
 };
